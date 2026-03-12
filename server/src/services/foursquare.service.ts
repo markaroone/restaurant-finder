@@ -48,15 +48,25 @@ const foursquareApi = ky.create({
 
 /**
  * Builds the search params record from our internal SearchParams.
+ * Uses `near` (text location) if available, otherwise falls back to `ll` (lat,lng coordinates).
  */
-const buildSearchParams = (params: SearchParams): Record<string, string> => {
+const buildSearchParams = (
+  params: SearchParams,
+  ll?: string,
+): Record<string, string> => {
   const searchParams: Record<string, string> = {
     query: params.query,
-    near: params.near,
     limit: String(params.limit),
     sort: 'RELEVANCE',
     fields: REQUESTED_FIELDS,
   };
+
+  // Priority: LLM-extracted "near" > browser geolocation "ll"
+  if (params.near.length > 0) {
+    searchParams.near = params.near;
+  } else if (ll != null) {
+    searchParams.ll = ll;
+  }
 
   // NOTE: min_price/max_price filters are premium-only on free tier.
   // We skip them to avoid 429 errors. The LLM still extracts price
@@ -73,15 +83,17 @@ const buildSearchParams = (params: SearchParams): Record<string, string> => {
  * Searches for restaurants using the Foursquare Places API.
  *
  * @param searchParams - Validated search parameters from the LLM
+ * @param ll - Optional lat,lng string (browser geolocation fallback)
  * @returns Raw Foursquare results array
  * @throws UpstreamError if the Foursquare API returns an error
  */
 export const searchRestaurants = async (
   searchParams: SearchParams,
+  ll?: string,
 ): Promise<FoursquarePlace[]> => {
-  const queryParams = buildSearchParams(searchParams);
+  const queryParams = buildSearchParams(searchParams, ll);
 
-  logger.info({ searchParams }, '🔍 Querying Foursquare Places API');
+  logger.info({ searchParams, ll }, '🔍 Querying Foursquare Places API');
 
   try {
     const data = await foursquareApi

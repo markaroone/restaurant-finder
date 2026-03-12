@@ -119,4 +119,8 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
+  button,
+  [role='button'] {
+    cursor: pointer;
+  }
 }

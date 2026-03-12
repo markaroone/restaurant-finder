@@ -1,19 +1,20 @@
 import { Request, Response } from 'express';
 
-import { executeSearch } from '@/modules/execute/execute.service';
 import { handleSuccess } from '@/common/utils/response-handler';
+import { executeSearch } from '@/modules/execute/execute.service';
 
 /**
  * Handles GET /api/execute
- * Extracts the validated message from query params,
- * runs the search pipeline, and returns the results.
- *
- * No try-catch needed — Express 5 catches async errors automatically.
+ * Extracts the validated message, optional ll (lat,lng), and client IP.
+ * Passes all three to the search pipeline for the location priority chain.
  */
 export const search = async (req: Request, res: Response): Promise<void> => {
-  const { message } = req.query as { message: string };
+  const { message, ll } = req.query as { message: string; ll?: string };
 
-  const data = await executeSearch(message);
+  // Extract client IP for geoip fallback
+  const clientIp = req.ip ?? req.socket.remoteAddress ?? undefined;
+
+  const data = await executeSearch(message, ll, clientIp);
 
   handleSuccess({
     response: res,
