@@ -1,0 +1,28 @@
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea
+.vscode
+*.swp
+*.swo
+
+# Node
+node_modules
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist
+out
+
+# Logs
+*.log
+
+# Coverage
+coverage
+*.lcov
