@@ -10,6 +10,8 @@ type RestaurantCardProps = {
   restaurant: Restaurant;
   /** Whether to use the alternate (mint) background */
   alternate: boolean;
+  /** Contextual label for distance, e.g. "away from La Union" */
+  distanceLabel?: string;
 };
 
 /**
@@ -19,6 +21,7 @@ type RestaurantCardProps = {
 export const RestaurantCard = ({
   restaurant,
   alternate,
+  distanceLabel,
 }: RestaurantCardProps): ReactNode => {
   const categoryText =
     restaurant.categories.length > 0
@@ -78,6 +81,12 @@ export const RestaurantCard = ({
                 <Navigation className="h-4 w-4 shrink-0" />
                 <p className="text-sm font-medium text-soft-forest">
                   {formatDistance(restaurant.distance)}
+                  {distanceLabel && (
+                    <span className="font-normal text-muted-foreground">
+                      {' '}
+                      {distanceLabel}
+                    </span>
+                  )}
                 </p>
               </div>
             )}

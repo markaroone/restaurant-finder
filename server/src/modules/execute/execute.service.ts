@@ -106,12 +106,22 @@ export const executeSearch = async (
   const hasNear = searchParams.near.length > 0;
   const hasLL = ll != null && ll.length > 0;
 
+  // Track which tier resolved the location for the distance label
+  let locationSource: 'near' | 'browser' | 'ip' | null = null;
+
+  if (hasNear) {
+    locationSource = 'near';
+  } else if (hasLL) {
+    locationSource = 'browser';
+  }
+
   // Tier 3: IP-based geolocation (only if tiers 1 & 2 are empty)
   let resolvedLL = ll;
   if (!hasNear && !hasLL) {
     const ipLL = resolveIpLocation(clientIp);
     if (ipLL) {
       resolvedLL = ipLL;
+      locationSource = 'ip';
     }
   }
 
@@ -133,12 +143,23 @@ export const executeSearch = async (
   // Step 4: Transform
   const results = transformResults(rawResults);
 
+  // Step 5: Build distance label based on which tier resolved the location
+  let distanceLabel = 'away';
+  if (locationSource === 'near') {
+    distanceLabel = `away from ${searchParams.near}`;
+  } else if (locationSource === 'browser') {
+    distanceLabel = 'away from you';
+  } else if (locationSource === 'ip') {
+    distanceLabel = 'away from you (approx.)';
+  }
+
   return {
     results,
     searchParams,
     meta: {
       resultCount: results.length,
       searchedAt: new Date().toISOString(),
+      distanceLabel,
     },
   };
 };
