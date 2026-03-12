@@ -14,7 +14,7 @@ export const executeQuerySchema = z.object({
         required_error: 'Message is required',
         invalid_type_error: 'Message must be a string',
       })
-      .min(1, 'Message cannot be empty')
+      .min(2, 'Message must be at least 2 characters')
       .max(500, 'Message must be 500 characters or fewer'),
     ll: z
       .string()
@@ -39,6 +39,7 @@ export const searchParamsSchema = z.object({
   price: z.number().int().min(1).max(4).nullable().default(null),
   open_now: z.boolean().default(false),
   limit: z.number().int().min(1).max(50).default(10),
+  is_food_related: z.boolean().default(true),
 });
 
 export type ExecuteQueryInput = z.infer<typeof executeQuerySchema>;

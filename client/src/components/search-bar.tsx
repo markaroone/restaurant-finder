@@ -43,7 +43,7 @@ export const SearchBar = ({
     (e: ChangeEvent) => {
       e.preventDefault();
       const trimmed = value.trim();
-      if (trimmed.length > 0) {
+      if (trimmed.length >= 2) {
         search(trimmed);
         onSearch();
       }
@@ -80,11 +80,12 @@ export const SearchBar = ({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             disabled={isLoading}
+            maxLength={500}
           />
           <div className="flex items-center bg-card pr-3">
             <Button
               type="submit"
-              disabled={isLoading || value.trim().length === 0}
+              disabled={isLoading || value.trim().length < 2}
               className="rounded-lg bg-primary px-6 font-bold text-primary-foreground hover:bg-primary/90"
             >
               {isLoading ? 'Searching...' : 'Search'}

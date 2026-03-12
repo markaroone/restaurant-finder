@@ -44,8 +44,20 @@ const responseJsonSchema = {
       description:
         'How many results the user wants. Default to 10 if not specified. Maximum is 50.',
     },
+    is_food_related: {
+      type: Type.BOOLEAN,
+      description:
+        'Set to true if the request is about food, restaurants, dining, cafes, bars, or any edible cuisine. Set to false if the request is about non-food things like gas stations, hotels, ATMs, hospitals, etc.',
+    },
   },
-  propertyOrdering: ['query', 'near', 'price', 'open_now', 'limit'],
+  propertyOrdering: [
+    'is_food_related',
+    'query',
+    'near',
+    'price',
+    'open_now',
+    'limit',
+  ],
 };
 
 /**
@@ -53,7 +65,12 @@ const responseJsonSchema = {
  */
 const SYSTEM_INSTRUCTION = `You are a restaurant search parameter extractor.
 
-Your ONLY job is to extract structured search parameters from the user's natural language request about finding restaurants.
+Your ONLY job is to extract structured search parameters from the user's natural language request about finding FOOD, RESTAURANTS, or DINING.
+
+Food-related classification:
+- Set is_food_related to TRUE for: restaurants, cafes, bars, bakeries, food trucks, any cuisine, any food item, coffee shops, dessert places, breweries, juice bars
+- Set is_food_related to FALSE for: gas stations, hotels, ATMs, hospitals, plumbers, mechanics, shopping malls, gyms, parking, or anything NOT about eating/drinking
+- When in doubt, set is_food_related to true
 
 Extraction rules:
 - Extract the food type or cuisine into "query"
@@ -130,6 +147,14 @@ export const parseMessage = async (message: string): Promise<SearchParams> => {
       const result = searchParamsSchema.safeParse(raw);
 
       if (result.success) {
+        // 3. Check if the query is food-related
+        if (!result.data.is_food_related) {
+          throw new BadRequestError(
+            'This app only searches for restaurants and food. Try searching for a cuisine like "sushi" or "Italian".',
+            { reason: 'NOT_FOOD_RELATED' },
+          );
+        }
+
         logger.info(
           { searchParams: result.data, attempt },
           '✅ LLM parsed message successfully',
