@@ -6,6 +6,7 @@
  */
 declare const ENV: {
   API_URL: string;
+  API_CODE: string;
   ENVIRONMENT: 'local' | 'stg' | 'production';
 };
 
