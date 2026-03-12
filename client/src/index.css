@@ -33,69 +33,83 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* Custom brand colors */
+  --color-forest: var(--forest);
+  --color-mint: var(--mint);
+  --color-soft-forest: var(--soft-forest);
 }
 
 :root {
   --radius: 0.5rem;
 
-  /* Light Mode */
-  --background: #fafafa;
-  --foreground: #18181b;
+  /* Light Mode — Neighborhood Cafe / Typography Focus */
+  --background: #fcfaf8;
+  --foreground: #1a3c34;
 
   --card: #ffffff;
-  --card-foreground: #18181b;
+  --card-foreground: #1a3c34;
 
   --popover: #ffffff;
-  --popover-foreground: #18181b;
+  --popover-foreground: #1a3c34;
 
-  --primary: #f97316; /* Orange 500 — warm restaurant theme */
+  --primary: #ec7f13; /* Warm orange accent */
   --primary-foreground: #ffffff;
 
-  --secondary: #f4f4f5;
-  --secondary-foreground: #18181b;
+  --secondary: #e6f4f1; /* Mint */
+  --secondary-foreground: #1a3c34;
 
   --muted: #f4f4f5;
   --muted-foreground: #71717a;
 
-  --accent: #f4f4f5;
-  --accent-foreground: #18181b;
+  --accent: #e6f4f1; /* Mint */
+  --accent-foreground: #1a3c34;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
 
   --border: #e4e4e7;
   --input: #e4e4e7;
-  --ring: #f97316;
+  --ring: #1a3c34;
+
+  /* Brand tokens */
+  --forest: #1a3c34;
+  --mint: #e6f4f1;
+  --soft-forest: #2d5a4e;
 }
 
 .dark {
-  --background: #09090b;
-  --foreground: #fafafa;
+  --background: #0f1a16;
+  --foreground: #f0faf6;
 
-  --card: #18181b;
-  --card-foreground: #fafafa;
+  --card: #162b24;
+  --card-foreground: #f0faf6;
 
-  --popover: #18181b;
-  --popover-foreground: #fafafa;
+  --popover: #162b24;
+  --popover-foreground: #f0faf6;
 
-  --primary: #fb923c; /* Orange 400 */
-  --primary-foreground: #18181b;
+  --primary: #ec7f13;
+  --primary-foreground: #ffffff;
 
-  --secondary: #27272a;
-  --secondary-foreground: #fafafa;
+  --secondary: #1a3c34;
+  --secondary-foreground: #e6f4f1;
 
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
+  --muted: #1a3c34;
+  --muted-foreground: #94a3b8;
 
-  --accent: #27272a;
-  --accent-foreground: #fafafa;
+  --accent: #1a3c34;
+  --accent-foreground: #e6f4f1;
 
   --destructive: #7f1d1d;
   --destructive-foreground: #fafafa;
 
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #fb923c;
+  --border: #2d5a4e;
+  --input: #2d5a4e;
+  --ring: #e6f4f1;
+
+  --forest: #e6f4f1;
+  --mint: #1a3c34;
+  --soft-forest: #94d4c4;
 }
 
 @layer base {

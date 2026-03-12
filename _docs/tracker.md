@@ -1,17 +1,19 @@
 # Tracker: Restaurant Finder
 
-**Status:** 🟢 IN PROGRESS
-**Current Phase:** Phase 2: Backend Core
+**Status:** IN PROGRESS
+**Current Phase:** Phase 3: Frontend Core
+**Next Immediate Step:** Begin Phase 3 — React frontend with search UI, results list, and map view
+**Last Updated:** 2026-03-13
 
 ## The "Next Immediate Step"
 
 > **AI Instruction:** Read this section to know what to do next.
 
-- [ ] Create LLM Service (`src/services/llm.service.ts`) — Gemini 2.5 Flash wrapper with structured output
-- [ ] Create Foursquare Service (`src/services/foursquare.service.ts`) — Places API wrapper
-- [ ] Create Execute Module (`src/modules/execute/`) — route, controller, service, schema, types
-- [ ] Mount routes in `app.ts` at `/api`
-- [ ] Manual smoke test with curl
+- [x] Create LLM Service (`src/services/llm.service.ts`) — Gemini 2.5 Flash wrapper with structured output
+- [x] Create Foursquare Service (`src/services/foursquare.service.ts`) — Places API wrapper
+- [x] Create Execute Module (`src/modules/execute/`) — route, controller, service, schema, types
+- [x] Mount routes in `app.ts` at `/api`
+- [x] Manual smoke test with curl
 
 ## Development Checklist
 
@@ -44,26 +46,26 @@
 
 ### Phase 2: Backend Core
 
-- [ ] Update `config/env.ts` — add `GEMINI_API_KEY`, `FOURSQUARE_API_KEY`, remove DB vars
-- [ ] Update `common/utils/api-errors.ts` — add `UpstreamError`, remove unused subclasses
-- [ ] Update `common/middleware/error-handler.ts` — remove Prisma error mapping
-- [ ] Create `common/middleware/code-gate.middleware.ts`
-- [ ] Create LLM Service (`src/services/llm.service.ts`):
-  - [ ] Initialize GoogleGenAI client
-  - [ ] Define response JSON schema
-  - [ ] Implement `parseMessage()` with structured output
-  - [ ] Implement retry logic
-- [ ] Create Foursquare Service (`src/services/foursquare.service.ts`):
-  - [ ] Implement `searchRestaurants()` with proper param mapping
-  - [ ] Handle API errors
-- [ ] Create Execute Module:
-  - [ ] `execute.types.ts` — SearchParams, TransformedRestaurant, ExecuteResponse
-  - [ ] `execute.schema.ts` — executeQuerySchema, searchParamsSchema
-  - [ ] `execute.service.ts` — orchestrator (LLM → Foursquare → transform)
-  - [ ] `execute.controller.ts` — input validation, response formatting
-  - [ ] `execute.route.ts` — wire GET /api/execute with code-gate middleware
-- [ ] Mount execute routes in `app.ts` at `/api`
-- [ ] Manual smoke test: `curl "http://localhost:3000/api/execute?message=sushi+in+la&code=pioneerdevai"`
+- [x] Update `config/env.ts` — add `GEMINI_API_KEY`, `FOURSQUARE_API_KEY`, remove DB vars
+- [x] Update `common/utils/api-errors.ts` — add `UpstreamError`, remove unused subclasses
+- [x] Update `common/middleware/error-handler.ts` — remove Prisma error mapping
+- [x] Create `common/middleware/code-gate.middleware.ts`
+- [x] Create LLM Service (`src/services/llm.service.ts`):
+  - [x] Initialize GoogleGenAI client
+  - [x] Define response JSON schema
+  - [x] Implement `parseMessage()` with structured output
+  - [x] Implement retry logic
+- [x] Create Foursquare Service (`src/services/foursquare.service.ts`):
+  - [x] Implement `searchRestaurants()` with proper param mapping
+  - [x] Handle API errors
+- [x] Create Execute Module:
+  - [x] `execute.types.ts` — SearchParams, TransformedRestaurant, ExecuteResponse
+  - [x] `execute.schema.ts` — executeQuerySchema, searchParamsSchema
+  - [x] `execute.service.ts` — orchestrator (LLM → Foursquare → transform)
+  - [x] `execute.controller.ts` — input validation, response formatting
+  - [x] `execute.route.ts` — wire GET /api/execute with code-gate middleware
+- [x] Mount execute routes in `app.ts` at `/api`
+- [x] Manual smoke test: `curl "http://localhost:3000/api/execute?message=sushi+in+la&code=pioneerdevai"`
 
 ---
 
@@ -119,3 +121,4 @@
 | :--------- | :------------------------------------------------------------------------------------------------------------ |
 | 2026-03-12 | Initial SDD generation. Full planning phase complete.                                                         |
 | 2026-03-12 | Phase 1 complete. Server & client scaffolds passing all checks. Git initialized. `docs/` renamed to `_docs/`. |
+| 2026-03-13 | Phase 2 Backend Core merged to `main`.                                                                        |

@@ -7,6 +7,7 @@ const baseSchema = z.object({
       (value) => !value.endsWith('/'),
       'Invalid API_URL. Please remove forward slash after the url.',
     ),
+  API_CODE: z.string({ error: 'Missing API_CODE env.' }),
   ENVIRONMENT: z.enum(['local', 'stg', 'production'], {
     error: 'Missing ENVIRONMENT env.',
   }),
