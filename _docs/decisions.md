@@ -240,5 +240,87 @@ Remove React Router entirely. Render everything in a single `App.tsx`. Configure
 
 ---
 
-_More ADRs will be added during development as decisions emerge._
+## ADR-007: Three-Tier Location Fallback with geoip-lite
+
+**Status:** Accepted
+**Date:** 2026-03-13
+
+### Context
+
+Users can search with queries like "ramen" (no location) or "sushi near me" (vague location). The LLM extracts a `near` field, but it can be empty when no location is mentioned. Without a location, Foursquare returns an error, and the user sees a 400 failure.
+
+### Decision
+
+Implement a **three-tier location priority chain**:
+
+```
+1. LLM-extracted "near" → Foursquare's "near" param (text-based, e.g., "Makati City")
+2. Browser geolocation "ll" → Foursquare's "ll" param (lat,lng from navigator.geolocation)
+3. IP geolocation via geoip-lite → Foursquare's "ll" param (city-level lat,lng from IP)
+4. If all three fail → 400 error with MISSING_LOCATION reason
+```
+
+- **Tier 1 (LLM `near`)** takes absolute priority — if the user says "pizza near Makati City", Foursquare searches Makati City even if the user's browser is in Cebu.
+- **Tier 2 (browser `ll`)** — Zustand store requests `navigator.geolocation` on app mount. The API function reads it imperatively (no subscription, no re-renders) and passes `ll` as a query param.
+- **Tier 3 (IP geoip)** — `geoip-lite` npm package bundles the MaxMind GeoLite2 database locally. Zero API calls, zero latency, zero rate limits. City-level accuracy (~5-50km). Handles IPv6-mapped prefixes, skips private/loopback IPs.
+
+### Rationale
+
+- **Best UX** — Users can type "ramen" and get results near them without ever mentioning a city.
+- **No external API dependency** — `geoip-lite` uses a local database file, so IP geolocation works offline and doesn't add latency.
+- **Progressive degradation** — Each tier is a fallback for the one above. The MISSING_LOCATION error is a last resort.
+- **LLM text always wins** — A user in Cebu typing "pizza near Makati" gets Makati results, not Cebu results. This avoids the confusion of browser coordinates overriding explicit intent.
+
+### Alternatives Considered
+
+| Alternative                               | Why Rejected                                                                                     |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| **Browser geolocation only**              | Users who deny permission get no fallback.                                                       |
+| **IP-based API (ip-api.com, ipinfo.io)**  | External API call adds latency and rate limits. `geoip-lite`'s local DB is faster and unlimited. |
+| **Default city fallback (e.g., Manila)**  | Wrong for most users. A hardcoded default is a bad UX.                                           |
+| **Require location in every search**      | Friction. Users expect "ramen" to just work.                                                     |
+| **Ask the user to set location manually** | Good UX pattern but adds UI complexity. Deferred to post-MVP.                                    |
+
+### Consequences
+
+- `geoip-lite` adds ~60MB to `node_modules` (MaxMind GeoLite2 DB). Server-side only, doesn't affect client bundle.
+- IP geolocation is city-level, not street-level. Acceptable for restaurant search (we just need the right metro area).
+- Local development on `127.0.0.1` / `::1` will skip IP geolocation (private IPs don't resolve). Browser geolocation covers this.
+- The MaxMind DB in `geoip-lite` is bundled and updated periodically with new npm versions. Not real-time accurate.
+
+---
+
+## ADR-008: Three-Tier Error Display Strategy
+
+**Status:** Accepted
+**Date:** 2026-03-13
+
+### Context
+
+The original `ErrorDisplay` component showed a single alarming red error panel for all errors. This was too aggressive for user-side mistakes (typos, missing location) which are not system failures.
+
+### Decision
+
+Use **three-tier error display** based on error type:
+
+| Tier             | Condition                                    | Icon          | Style                    | Message                                     |
+| ---------------- | -------------------------------------------- | ------------- | ------------------------ | ------------------------------------------- |
+| Missing location | `400` + `meta.reason === 'MISSING_LOCATION'` | MapPinOff     | Subtle gray text         | "Include a city, or enable location access" |
+| Bad request      | `400` (other)                                | SearchX       | Subtle gray text         | "Try something like 'sushi in downtown LA'" |
+| Server error     | `500`, network errors                        | AlertTriangle | Red panel + retry button | Error details + "Try again"                 |
+
+### Rationale
+
+- **User-side errors (400s)** are the user's fault — a gentle hint to rephrase is more helpful than a scary error.
+- **`MISSING_LOCATION`** is a specific, actionable error — the user can either add a city or enable geolocation. A dedicated message for this guides the user.
+- **Server errors (500s, network)** are system failures — the red panel with retry is appropriate because the user can't fix it themselves.
+- The backend passes `meta.reason: 'MISSING_LOCATION'` so the frontend can distinguish error types without parsing error message strings.
+
+### Consequences
+
+- Frontend depends on the `meta.reason` field from the backend. If new error reasons are added, the frontend needs corresponding handling.
+- The gentle 400 messages don't include a "Try again" button — the user is expected to rephrase and re-submit via the search bar.
+
+---
+
 _More ADRs will be added during development as decisions emerge._

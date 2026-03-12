@@ -1,19 +1,17 @@
 # Tracker: Restaurant Finder
 
 **Status:** IN PROGRESS
-**Current Phase:** Phase 3: Frontend Core
-**Next Immediate Step:** Begin Phase 3 — React frontend with search UI, results list, and map view
+**Current Phase:** Phase 3.5: Hardening
+**Next Immediate Step:** Commit Phase 3.5 changes, then proceed to Phase 4 (Testing)
 **Last Updated:** 2026-03-13
 
 ## The "Next Immediate Step"
 
 > **AI Instruction:** Read this section to know what to do next.
 
-- [x] Create LLM Service (`src/services/llm.service.ts`) — Gemini 2.5 Flash wrapper with structured output
-- [x] Create Foursquare Service (`src/services/foursquare.service.ts`) — Places API wrapper
-- [x] Create Execute Module (`src/modules/execute/`) — route, controller, service, schema, types
-- [x] Mount routes in `app.ts` at `/api`
-- [x] Manual smoke test with curl
+- [x] Commit `fix/phase3-hardening` branch
+- [x] Merge to `main`
+- [ ] Begin Phase 4: Backend Tests
 
 ## Development Checklist
 
@@ -50,41 +48,49 @@
 - [x] Update `common/utils/api-errors.ts` — add `UpstreamError`, remove unused subclasses
 - [x] Update `common/middleware/error-handler.ts` — remove Prisma error mapping
 - [x] Create `common/middleware/code-gate.middleware.ts`
-- [x] Create LLM Service (`src/services/llm.service.ts`):
-  - [x] Initialize GoogleGenAI client
-  - [x] Define response JSON schema
-  - [x] Implement `parseMessage()` with structured output
-  - [x] Implement retry logic
-- [x] Create Foursquare Service (`src/services/foursquare.service.ts`):
-  - [x] Implement `searchRestaurants()` with proper param mapping
-  - [x] Handle API errors
-- [x] Create Execute Module:
-  - [x] `execute.types.ts` — SearchParams, TransformedRestaurant, ExecuteResponse
-  - [x] `execute.schema.ts` — executeQuerySchema, searchParamsSchema
-  - [x] `execute.service.ts` — orchestrator (LLM → Foursquare → transform)
-  - [x] `execute.controller.ts` — input validation, response formatting
-  - [x] `execute.route.ts` — wire GET /api/execute with code-gate middleware
+- [x] Create LLM Service (`src/services/llm.service.ts`)
+- [x] Create Foursquare Service (`src/services/foursquare.service.ts`)
+- [x] Create Execute Module (types, schema, service, controller, route)
 - [x] Mount execute routes in `app.ts` at `/api`
-- [x] Manual smoke test: `curl "http://localhost:3000/api/execute?message=sushi+in+la&code=pioneerdevai"`
+- [x] Manual smoke test with curl
 
 ---
 
 ### Phase 3: Frontend Core
 
-- [ ] Set up API client (`src/api/api-client.ts`) — ky instance pointing to backend
-- [ ] Create `search-restaurants.ts` API function (withApiError wrapped)
-- [ ] Create TanStack Query hook `useSearchRestaurants`
-- [ ] Create shared types (`src/types/restaurant.ts`)
-- [ ] Build components:
-  - [ ] `SearchBar` — input + submit button
-  - [ ] `RestaurantCard` — individual result card
-  - [ ] `RestaurantList` — list/grid of cards
-  - [ ] `LoadingSkeleton` — skeleton loading state
-  - [ ] `ErrorDisplay` — error message component
-  - [ ] `EmptyState` — initial state / no results
-- [ ] Wire everything in `App.tsx`
-- [ ] Style with TailwindCSS — clean, modern design
-- [ ] Test in browser — full flow working
+- [x] Design tokens: Typography Focus palette (forest green, mint, orange accent)
+- [x] shadcn components: Button, Input, Skeleton
+- [x] Data layer: restaurant types, search API function (withApiError), TanStack Query hook
+- [x] Components: SearchBar, RestaurantCard, RestaurantList, LoadingSkeleton, ErrorDisplay, EmptyState, AppHeader, SearchContent
+- [x] App shell: SearchPage → AppHeader + SearchContent
+- [x] Zustand store (TkDodo pattern): atomic selectors, nested actions, `getState()` for imperative reads
+- [x] Re-render isolation: local `useState` + `triggerSearch()` in query hook
+- [x] Refactored RestaurantList to own all conditional rendering (flux-ai pattern)
+- [x] Committed and merged to `main`
+
+---
+
+### Phase 3.5: Hardening
+
+- [x] `cursor:pointer` on all buttons (global CSS rule)
+- [x] `ENV.API_CODE` — moved hardcoded code gate string to env vars
+- [x] `QUICK_SEARCHES as const` — tighter TypeScript inference
+- [x] Soft 400 error message — gentle inline hint instead of red error panel
+- [x] Three-tier error display:
+  - `MISSING_LOCATION` → MapPinOff icon, location-specific hint
+  - Other 400s → SearchX icon, rephrase hint
+  - Server errors → red panel with retry button
+- [x] Geolocation fallback:
+  - Frontend: Zustand store for browser coordinates, requested on app mount
+  - API sends `ll` (lat,lng) as query param when coordinates available
+  - Backend: optional `ll` query param, optional `near` in searchParamsSchema
+- [x] Three-tier location priority chain:
+  1. LLM-extracted `near` from user's text (highest priority)
+  2. Browser geolocation `ll` from frontend
+  3. IP geolocation via `geoip-lite` (local MaxMind DB, zero API calls)
+  4. 400 error with `MISSING_LOCATION` reason if all fail
+- [x] `geoip-lite` installed — resolves IP to city-level lat/lng, handles IPv6-mapped prefixes, skips private IPs
+- [ ] Commit and merge to `main`
 
 ---
 
@@ -104,15 +110,8 @@
 - [ ] Deploy backend to Render/Railway (root: `/server`)
 - [ ] Deploy frontend to Render/Vercel (root: `/client`)
 - [ ] Update frontend env to point to deployed backend URL
-- [ ] Write project-level `README.md` with:
-  - [ ] Setup instructions
-  - [ ] Env var configuration
-  - [ ] How to run locally
-  - [ ] How to test the API endpoint
-  - [ ] Deployed URLs
-  - [ ] Testing notes (what was tested, how to run, what wasn't)
-  - [ ] Assumptions, tradeoffs, limitations
-- [ ] Clean up git history — meaningful commits per phase
+- [ ] Write project-level `README.md`
+- [ ] Clean up git history
 - [ ] Final end-to-end test on deployed version
 
 ## Changelog
@@ -122,3 +121,5 @@
 | 2026-03-12 | Initial SDD generation. Full planning phase complete.                                                         |
 | 2026-03-12 | Phase 1 complete. Server & client scaffolds passing all checks. Git initialized. `docs/` renamed to `_docs/`. |
 | 2026-03-13 | Phase 2 Backend Core merged to `main`.                                                                        |
+| 2026-03-13 | Phase 3 Frontend Core merged to `main`.                                                                       |
+| 2026-03-13 | Phase 3.5 Hardening: geolocation fallback, geoip-lite, three-tier error display, cursor:pointer, ENV.API_CODE |
