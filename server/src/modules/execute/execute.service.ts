@@ -82,12 +82,27 @@ const resolveIpLocation = (ip?: string): string | undefined => {
 };
 
 /**
- * Orchestrates the full search pipeline:
- * 1. Parse the user's message with the LLM
- * 2. Determine location using the priority chain:
- *    LLM "near" > browser "ll" > IP geolocation > error
- * 3. Search Foursquare with the resolved location
- * 4. Transform the results into a clean response
+ * Placeholder location strings the LLM sometimes produces
+ * (e.g., "near me" → near: "current location"). Foursquare can't resolve these,
+ * so they are stripped to trigger the browser/IP geolocation fallback.
+ */
+const PLACEHOLDER_LOCATIONS = [
+  'current location',
+  'near me',
+  'my location',
+  'my area',
+  'nearby',
+  'here',
+];
+
+/**
+ * Main search pipeline: LLM parsing → location resolution → Foursquare search → transform.
+ *
+ * Location priority chain:
+ * 1. LLM-extracted `near` (e.g., "Los Angeles")
+ * 2. Browser geolocation `ll` (lat,lng from the frontend)
+ * 3. IP-based geolocation via geoip-lite
+ * 4. Throws MISSING_LOCATION if all tiers fail
  *
  * @param message - The user's natural language search query
  * @param ll - Optional lat,lng string from browser geolocation (fallback)
@@ -101,6 +116,12 @@ export const executeSearch = async (
 ): Promise<ExecuteResponse> => {
   // Step 1: LLM parsing
   const searchParams = await parseMessage(message);
+
+  // Sanitize placeholder locations the LLM sometimes produces
+  // (e.g., "near me" → near: "current location"). Foursquare can't resolve these.
+  if (PLACEHOLDER_LOCATIONS.includes(searchParams.near.toLowerCase().trim())) {
+    searchParams.near = '';
+  }
 
   // Step 2: Resolve location — priority chain
   const hasNear = searchParams.near.length > 0;

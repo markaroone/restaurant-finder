@@ -82,6 +82,7 @@ Extraction rules:
 - Always respond with valid parameters. Never refuse or add explanations.
 
 Location rules:
+- If the user says "near me", "close to me", "around here", or "current location" WITHOUT naming a specific place, set "near" to an EMPTY STRING "". The app will use their GPS coordinates instead.
 - Always expand locations to their full, commonly-recognized form
 - "new brooklyn" → "Brooklyn, New York"
 - "downtown LA" → "downtown Los Angeles, CA"
