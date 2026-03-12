@@ -1,14 +1,17 @@
 # Tracker: Restaurant Finder
 
-**Status:** 🟡 PLANNING
-**Current Phase:** Phase 0: SDD & Planning
+**Status:** 🟢 IN PROGRESS
+**Current Phase:** Phase 2: Backend Core
 
 ## The "Next Immediate Step"
 
 > **AI Instruction:** Read this section to know what to do next.
 
-- [ ] Review and finalize the Three-File System (product.md, sdd_readme.md, tracker.md) with the user.
-- [ ] Once approved, proceed to Phase 1: Project Setup.
+- [ ] Create LLM Service (`src/services/llm.service.ts`) — Gemini 2.5 Flash wrapper with structured output
+- [ ] Create Foursquare Service (`src/services/foursquare.service.ts`) — Places API wrapper
+- [ ] Create Execute Module (`src/modules/execute/`) — route, controller, service, schema, types
+- [ ] Mount routes in `app.ts` at `/api`
+- [ ] Manual smoke test with curl
 
 ## Development Checklist
 
@@ -26,24 +29,16 @@
 
 ### Phase 1: Project Setup
 
-- [ ] Create `restaurant-finder/` root folder with `server/`, `client/`, `docs/` subdirectories
-- [ ] Clone flux-ai-be into `server/` and strip project-specific code:
-  - [ ] Remove Prisma, pg, pg-boss, better-auth, and DB-related deps
-  - [ ] Remove all existing modules (keep health as-is)
-  - [ ] Strip auth-related middleware and replace with code-gate pattern
-  - [ ] Keep: Express app, env config, error handler, pino, helmet, cors, rate-limit
-  - [ ] Update `package.json` — rename, clean deps
-  - [ ] Add `@google/genai` dependency
-- [ ] Clone flux-ai-fe into `client/` and strip project-specific code:
-  - [ ] Remove all features/ directories
-  - [ ] Remove better-auth, react-router, and unused deps
-  - [ ] Keep: React, Vite, TailwindCSS, shadcn, TanStack Query, ky, zustand
-  - [ ] Update `package.json` — rename, clean deps
-  - [ ] Clean `App.tsx` to blank slate
-- [ ] Set up `.env.example` for both server and client
-- [ ] Create Foursquare developer account and get API key
-- [ ] Create Gemini API key from aistudio.google.com
-- [ ] Verify both projects start without errors
+- [x] Create `restaurant-finder/` root folder with `server/`, `client/`, `_docs/` subdirectories
+- [x] Clone flux-ai-be into `server/` and strip project-specific code
+- [x] Clone flux-ai-fe into `client/` and strip project-specific code
+- [x] Set up `.env.example` for both server and client
+- [x] Create Foursquare developer account and get API key
+- [x] Create Gemini API key from aistudio.google.com
+- [x] Initialize git repo
+- [x] Verify both projects start without errors
+- [x] Both `bun run check` (server) and `pnpm run check` (client) pass
+- [x] Rename `docs/` → `_docs/` for alphabetical folder priority
 
 ---
 
@@ -120,6 +115,7 @@
 
 ## Changelog
 
-| Date | Change |
-|:-----|:-------|
-| 2026-03-12 | Initial SDD generation. Full planning phase complete. |
+| Date       | Change                                                                                                        |
+| :--------- | :------------------------------------------------------------------------------------------------------------ |
+| 2026-03-12 | Initial SDD generation. Full planning phase complete.                                                         |
+| 2026-03-12 | Phase 1 complete. Server & client scaffolds passing all checks. Git initialized. `docs/` renamed to `_docs/`. |

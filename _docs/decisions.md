@@ -27,13 +27,13 @@ Use **Google Gemini 2.5 Flash** via the `@google/genai` SDK with **structured ou
 
 ### Alternatives Considered
 
-| Alternative | Why Rejected |
-|---|---|
-| **OpenAI GPT-4o-mini** | No existing account. Adds billing overhead. Similar quality for this use case. |
-| **Groq (free tier)** | Free but less reliable for structured extraction. No native JSON mode guarantee. |
-| **Regex / keyword parsing** | Brittle. Can't handle "not too pricey Italian near Times Square" — requires understanding of nuance. |
-| **Hybrid (LLM primary + regex fallback)** | Excellent idea. Deferred to post-MVP. Adds complexity without immediate benefit. |
-| **Function calling mode** | Heavier API pattern designed for multi-tool agentic workflows. Overkill for single-purpose extraction. |
+| Alternative                               | Why Rejected                                                                                           |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **OpenAI GPT-4o-mini**                    | No existing account. Adds billing overhead. Similar quality for this use case.                         |
+| **Groq (free tier)**                      | Free but less reliable for structured extraction. No native JSON mode guarantee.                       |
+| **Regex / keyword parsing**               | Brittle. Can't handle "not too pricey Italian near Times Square" — requires understanding of nuance.   |
+| **Hybrid (LLM primary + regex fallback)** | Excellent idea. Deferred to post-MVP. Adds complexity without immediate benefit.                       |
+| **Function calling mode**                 | Heavier API pattern designed for multi-tool agentic workflows. Overkill for single-purpose extraction. |
 
 ### Consequences
 
@@ -50,27 +50,28 @@ Use **Google Gemini 2.5 Flash** via the `@google/genai` SDK with **structured ou
 
 ### Context
 
-The Gemini SDK's `responseJsonSchema` guarantees the response *structure* matches (correct types, correct field names). But it does NOT guarantee *business-valid values* — e.g., `price: 7` is a valid number but not a valid price level (1-4).
+The Gemini SDK's `responseJsonSchema` guarantees the response _structure_ matches (correct types, correct field names). But it does NOT guarantee _business-valid values_ — e.g., `price: 7` is a valid number but not a valid price level (1-4).
 
 ### Decision
 
 Apply **two layers of validation**:
+
 1. **Layer 1 — SDK schema** — Guarantees JSON structure (types, field names)
 2. **Layer 2 — Zod schema** — Validates business rules (price 1-4, limit 1-50, non-empty strings)
 
 ### Rationale
 
 - Defense-in-depth is standard practice when consuming external/untrusted data.
-- The LLM is a black box — even with structured output, the *values* it chooses are non-deterministic.
+- The LLM is a black box — even with structured output, the _values_ it chooses are non-deterministic.
 - Zod validation is cheap (~0ms) and catches edge cases before they reach Foursquare.
 - The Zod schema also serves as runtime documentation of what "valid parameters" means.
 
 ### Alternatives Considered
 
-| Alternative | Why Rejected |
-|---|---|
-| Trust SDK schema alone | Values like `price: 99` would pass through to Foursquare, causing confusing empty results. |
-| Validate only with Zod (no SDK schema) | Would need to handle malformed JSON, missing fields, wrong types manually. |
+| Alternative                            | Why Rejected                                                                               |
+| -------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Trust SDK schema alone                 | Values like `price: 99` would pass through to Foursquare, causing confusing empty results. |
+| Validate only with Zod (no SDK schema) | Would need to handle malformed JSON, missing fields, wrong types manually.                 |
 
 ### Consequences
 
@@ -111,11 +112,11 @@ export const codeGateMiddleware = (req, _res, next) => {
 
 ### Alternatives Considered
 
-| Alternative | Why Rejected |
-|---|---|
-| Validate code inside the controller | Mixes auth concern with business logic. |
-| Use a header-based API key | Spec explicitly requires `code` as a query parameter. |
-| Environment-variable code (configurable) | Over-engineering. The spec hardcodes `pioneerdevai`. |
+| Alternative                              | Why Rejected                                          |
+| ---------------------------------------- | ----------------------------------------------------- |
+| Validate code inside the controller      | Mixes auth concern with business logic.               |
+| Use a header-based API key               | Spec explicitly requires `code` as a query parameter. |
+| Environment-variable code (configurable) | Over-engineering. The spec hardcodes `pioneerdevai`.  |
 
 ### Consequences
 
@@ -148,12 +149,12 @@ The flux-ai-be stack includes Prisma + PostgreSQL. We need to decide whether the
 
 If this were a real product, a database would enable:
 
-| Feature | Why DB is needed |
-|---|---|
-| **Query logging / analytics** | Track what users search for, popular cuisines, common locations |
-| **Response caching** | Store Foursquare results for identical queries to reduce latency and API costs |
-| **User accounts + favorites** | Save preferred restaurants, search history |
-| **Rate limiting per user** | More granular than IP-based rate limiting |
+| Feature                       | Why DB is needed                                                               |
+| ----------------------------- | ------------------------------------------------------------------------------ |
+| **Query logging / analytics** | Track what users search for, popular cuisines, common locations                |
+| **Response caching**          | Store Foursquare results for identical queries to reduce latency and API costs |
+| **User accounts + favorites** | Save preferred restaurants, search history                                     |
+| **Rate limiting per user**    | More granular than IP-based rate limiting                                      |
 
 ### Consequences
 
@@ -181,7 +182,7 @@ Single monorepo with `server/` and `client/` subdirectories, deployed as separat
 restaurant-finder/
 ├── server/     ← Backend (Render/Railway service, root: /server)
 ├── client/     ← Frontend (Render/Vercel service, root: /client)
-├── docs/       ← SDD docs, ADRs
+├── _docs/      ← SDD docs, ADRs
 └── README.md   ← Project overview
 ```
 
@@ -194,9 +195,9 @@ restaurant-finder/
 
 ### Alternatives Considered
 
-| Alternative | Why Rejected |
-|---|---|
-| Two separate repos | Evaluators need to clone two repos. Git history is split. More overhead. |
+| Alternative          | Why Rejected                                                                               |
+| -------------------- | ------------------------------------------------------------------------------------------ |
+| Two separate repos   | Evaluators need to clone two repos. Git history is split. More overhead.                   |
 | Next.js (all-in-one) | Doesn't match existing stack (Express + separate React). Would need to learn new patterns. |
 
 ### Consequences
@@ -227,10 +228,10 @@ Remove React Router entirely. Render everything in a single `App.tsx`. Configure
 
 ### Alternatives Considered
 
-| Alternative | Why Rejected |
-|---|---|
-| Keep React Router with single route + catch-all | Extra boilerplate for no benefit. |
-| Add multiple routes (search, about, etc.) | Over-scoping. The spec asks for a simple, usable UI. |
+| Alternative                                     | Why Rejected                                         |
+| ----------------------------------------------- | ---------------------------------------------------- |
+| Keep React Router with single route + catch-all | Extra boilerplate for no benefit.                    |
+| Add multiple routes (search, about, etc.)       | Over-scoping. The spec asks for a simple, usable UI. |
 
 ### Consequences
 
@@ -239,4 +240,5 @@ Remove React Router entirely. Render everything in a single `App.tsx`. Configure
 
 ---
 
-*More ADRs will be added during development as decisions emerge.*
+_More ADRs will be added during development as decisions emerge._
+_More ADRs will be added during development as decisions emerge._
