@@ -12,6 +12,8 @@ export type SearchParams = {
   open_now: boolean;
   /** Number of results to return (1-50). */
   limit: number;
+  /** Whether the request is about food/restaurants. */
+  is_food_related: boolean;
 };
 
 /**

@@ -1,4 +1,10 @@
-import { AlertTriangle, MapPinOff, RefreshCw, SearchX } from 'lucide-react';
+import {
+  AlertTriangle,
+  MapPinOff,
+  RefreshCw,
+  SearchX,
+  UtensilsCrossed,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -23,6 +29,8 @@ export const ErrorDisplay = ({
   const isBadRequest = isApiError && error.status === 400;
   const isMissingLocation =
     isBadRequest && isApiError && error.meta?.reason === 'MISSING_LOCATION';
+  const isNotFoodRelated =
+    isBadRequest && isApiError && error.meta?.reason === 'NOT_FOOD_RELATED';
 
   // ── Missing location: Location-specific hint ───────────────
   if (isMissingLocation)
@@ -35,6 +43,23 @@ export const ErrorDisplay = ({
             &quot;ramen in Makati City&quot;
           </strong>
           , or enable location access in your browser.
+        </p>
+      </div>
+    );
+
+  // ── Not food related: Food-specific hint ────────────────────
+  if (isNotFoodRelated)
+    return (
+      <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+        <UtensilsCrossed className="mb-4 h-10 w-10 text-muted-foreground/50" />
+        <p className="max-w-sm text-sm text-muted-foreground">
+          This app only searches for restaurants and food. Try something like{' '}
+          <strong className="text-foreground">&quot;sushi near me&quot;</strong>{' '}
+          or{' '}
+          <strong className="text-foreground">
+            &quot;Italian in Makati&quot;
+          </strong>
+          .
         </p>
       </div>
     );

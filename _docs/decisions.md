@@ -323,4 +323,57 @@ Use **three-tier error display** based on error type:
 
 ---
 
+## ADR-009: Non-Food Query Detection with Fail-Open Default
+
+**Status:** Accepted
+**Date:** 2026-03-13
+
+### Context
+
+The app is a restaurant finder, but users may type non-food queries like "nearest gas station" or "ATMs near me". Without detection, the LLM still extracts a `query` and `near`, and Foursquare returns irrelevant results or empty sets.
+
+### Decision
+
+Add an `is_food_related: boolean` field to the LLM structured output schema. The system prompt classifies queries as food-related or not. When the LLM returns `is_food_related: false`, the backend throws a `BadRequestError` with `reason: 'NOT_FOOD_RELATED'`, and the frontend shows a dedicated hint.
+
+**Critical design choice:** The system prompt instructs the LLM to **"when in doubt, set `is_food_related` to true"** — a **fail-open** default.
+
+### Rationale: Fail-Open vs. Fail-Closed
+
+This is a classic **false positive vs. false negative trade-off**:
+
+| Failure Mode                                 | What Happens                                                                     | Severity                      |
+| -------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------- |
+| **False positive** (non-food passes through) | Foursquare returns few/no results → user sees empty state → rephrases            | Mild annoyance                |
+| **False negative** (food gets blocked)       | Valid query rejected → user told "this isn't about food" → **broken experience** | Frustrating, feels like a bug |
+
+**Industry standard for search/discovery apps is fail-open:**
+
+| Product              | Behavior                                            | Default    |
+| -------------------- | --------------------------------------------------- | ---------- |
+| Google Search        | Processes any query, never says "not valid"         | Permissive |
+| Uber Eats / DoorDash | "gas" → shows "Gas Monkey Bar & Grill"              | Permissive |
+| ChatGPT / Claude     | Responds unless safety guardrail hit                | Permissive |
+| Yelp                 | Searches anything — restaurants, plumbers, dentists | Fully open |
+
+**Fail-closed** is appropriate for **security and moderation** (fraud detection, content moderation). **Fail-open** is appropriate for **search and discovery** — which is what we are.
+
+### Alternatives Considered
+
+| Alternative                             | Why Rejected                                                       |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| No detection at all                     | Non-food queries return confusing empty results with no guidance   |
+| Fail-closed default (block when unsure) | Risks blocking legitimate food queries ("boba", "poke", "izakaya") |
+| Keyword blocklist                       | Brittle, doesn't scale, misses nuance                              |
+| Separate classification API call        | Adds latency and cost for a low-priority concern                   |
+
+### Consequences
+
+- Edge cases like "coffee shop" or "bubble tea" correctly pass through (food-related).
+- A truly non-food query ("car wash") that slips through just returns empty results — harmless.
+- The LLM classification is not perfect, but the fail-open default ensures valid food queries are never incorrectly blocked.
+- Frontend has a fourth error tier: `NOT_FOOD_RELATED` → `UtensilsCrossed` icon with food-specific hint.
+
+---
+
 _More ADRs will be added during development as decisions emerge._
