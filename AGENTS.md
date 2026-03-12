@@ -35,12 +35,12 @@
 
 ## SDD Documentation
 
-Docs live in `docs/` at the repo root:
+Docs live in `_docs/` at the repo root:
 
-- `docs/product.md` — Product spec (what & why)
-- `docs/README.md` — Technical blueprint (how)
-- `docs/tracker.md` — Development state machine
-- `docs/decisions.md` — Architecture Decision Records
+- `_docs/product.md` — Product spec (what & why)
+- `_docs/README.md` — Technical blueprint (how)
+- `_docs/tracker.md` — Development state machine
+- `_docs/decisions.md` — Architecture Decision Records
 
 **Before coding:** Read `tracker.md` to know what to do next.
 **After coding:** Update `tracker.md` to mark items complete.

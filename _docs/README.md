@@ -38,27 +38,27 @@ flowchart LR
 
 ### Parsed Search Parameters (LLM Output → Zod Validated)
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `query` | `string` | Yes | Cuisine or restaurant type (e.g., "sushi", "Italian") |
-| `near` | `string` | Yes | Location to search (e.g., "downtown Los Angeles") |
-| `price` | `number \| null` | No | Price level 1-4 (1=cheap, 4=very expensive) |
-| `open_now` | `boolean` | No | Whether to filter for currently open places |
-| `limit` | `number` | No | Number of results (default: 10, max: 50) |
+| Field      | Type             | Required | Description                                           |
+| ---------- | ---------------- | -------- | ----------------------------------------------------- |
+| `query`    | `string`         | Yes      | Cuisine or restaurant type (e.g., "sushi", "Italian") |
+| `near`     | `string`         | Yes      | Location to search (e.g., "downtown Los Angeles")     |
+| `price`    | `number \| null` | No       | Price level 1-4 (1=cheap, 4=very expensive)           |
+| `open_now` | `boolean`        | No       | Whether to filter for currently open places           |
+| `limit`    | `number`         | No       | Number of results (default: 10, max: 50)              |
 
 ### Transformed Restaurant Response (What we return to the client)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `string` | Foursquare `fsq_id` |
-| `name` | `string` | Restaurant name |
-| `address` | `string` | Formatted address |
-| `categories` | `{ name: string; icon: string }[]` | Cuisine/category labels with icon URLs |
-| `price` | `number \| null` | Price level 1-4 |
-| `rating` | `number \| null` | Rating (if available from free tier) |
-| `distance` | `number \| null` | Distance in meters from search center |
-| `hours` | `{ openNow: boolean; display: string } \| null` | Hours information |
-| `location` | `{ lat: number; lng: number } \| null` | Coordinates (for future map view) |
+| Field        | Type                                            | Description                            |
+| ------------ | ----------------------------------------------- | -------------------------------------- |
+| `id`         | `string`                                        | Foursquare `fsq_id`                    |
+| `name`       | `string`                                        | Restaurant name                        |
+| `address`    | `string`                                        | Formatted address                      |
+| `categories` | `{ name: string; icon: string }[]`              | Cuisine/category labels with icon URLs |
+| `price`      | `number \| null`                                | Price level 1-4                        |
+| `rating`     | `number \| null`                                | Rating (if available from free tier)   |
+| `distance`   | `number \| null`                                | Distance in meters from search center  |
+| `hours`      | `{ openNow: boolean; display: string } \| null` | Hours information                      |
+| `location`   | `{ lat: number; lng: number } \| null`          | Coordinates (for future map view)      |
 
 ## API Endpoint
 
@@ -68,10 +68,10 @@ flowchart LR
 
 #### Query Parameters
 
-| Param | Type | Required | Description |
-|-------|------|----------|-------------|
-| `message` | `string` | Yes | Natural language search query (1-500 chars) |
-| `code` | `string` | Yes | Must be exactly `pioneerdevai` |
+| Param     | Type     | Required | Description                                 |
+| --------- | -------- | -------- | ------------------------------------------- |
+| `message` | `string` | Yes      | Natural language search query (1-500 chars) |
+| `code`    | `string` | Yes      | Must be exactly `pioneerdevai`              |
 
 #### Success Response (200)
 
@@ -83,13 +83,16 @@ flowchart LR
       "name": "Sushi Gen",
       "address": "422 E 2nd St, Los Angeles, CA 90012",
       "categories": [
-        { "name": "Sushi Restaurant", "icon": "https://ss3.4sqi.net/img/categories_v2/food/sushi_64.png" }
+        {
+          "name": "Sushi Restaurant",
+          "icon": "https://ss3.4sqi.net/img/categories_v2/food/sushi_64.png"
+        }
       ],
       "price": 2,
       "rating": null,
       "distance": 450,
       "hours": { "openNow": true, "display": "Mon-Sat 11:15 AM-2:00 PM" },
-      "location": { "lat": 34.0483, "lng": -118.2390 }
+      "location": { "lat": 34.0483, "lng": -118.239 }
     }
   ],
   "searchParams": {
@@ -111,14 +114,14 @@ flowchart LR
 
 #### Error Responses
 
-| Status | Code | When | Response Body |
-|--------|------|------|---------------|
-| `401` | `UNAUTHORIZED` | `code` is missing or not `pioneerdevai` | RFC 7807 Problem Document |
-| `400` | `BAD_REQUEST` | `message` is empty or too long | RFC 7807 Problem Document |
-| `422` | `PARSE_ERROR` | LLM could not extract valid parameters | RFC 7807 Problem Document |
-| `502` | `UPSTREAM_ERROR` | Gemini or Foursquare API fails | RFC 7807 Problem Document |
-| `429` | `TOO_MANY_REQUESTS` | Rate limit exceeded | RFC 7807 Problem Document |
-| `500` | `INTERNAL_SERVER_ERROR` | Unexpected server error | RFC 7807 Problem Document |
+| Status | Code                    | When                                    | Response Body             |
+| ------ | ----------------------- | --------------------------------------- | ------------------------- |
+| `401`  | `UNAUTHORIZED`          | `code` is missing or not `pioneerdevai` | RFC 7807 Problem Document |
+| `400`  | `BAD_REQUEST`           | `message` is empty or too long          | RFC 7807 Problem Document |
+| `422`  | `PARSE_ERROR`           | LLM could not extract valid parameters  | RFC 7807 Problem Document |
+| `502`  | `UPSTREAM_ERROR`        | Gemini or Foursquare API fails          | RFC 7807 Problem Document |
+| `429`  | `TOO_MANY_REQUESTS`     | Rate limit exceeded                     | RFC 7807 Problem Document |
+| `500`  | `INTERNAL_SERVER_ERROR` | Unexpected server error                 | RFC 7807 Problem Document |
 
 #### Business Rules & Guardrails
 
@@ -150,6 +153,7 @@ flowchart TD
 ```
 
 **System prompt strategy:**
+
 - Fixed system instruction (never includes user input)
 - User message goes in `contents` field only (prevents prompt injection)
 - `temperature: 0.1` for deterministic output
@@ -175,21 +179,21 @@ flowchart TD
 
 **Parameter mapping:**
 
-| SearchParams field | Foursquare param |
-|---|---|
-| `query` | `query` |
-| `near` | `near` |
-| `price` (exact) | `min_price` AND `max_price` |
-| `open_now` | `open_now` |
-| `limit` | `limit` |
+| SearchParams field | Foursquare param            |
+| ------------------ | --------------------------- |
+| `query`            | `query`                     |
+| `near`             | `near`                      |
+| `price` (exact)    | `min_price` AND `max_price` |
+| `open_now`         | `open_now`                  |
+| `limit`            | `limit`                     |
 
 ## Validation Schemas (Zod)
 
-| Schema | Location | Fields |
-|--------|----------|--------|
-| `executeQuerySchema` | `execute.schema.ts` | `message: z.string().min(1).max(500)`, `code: z.literal('pioneerdevai')` |
+| Schema               | Location            | Fields                                                                                                                                                         |
+| -------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `executeQuerySchema` | `execute.schema.ts` | `message: z.string().min(1).max(500)`, `code: z.literal('pioneerdevai')`                                                                                       |
 | `searchParamsSchema` | `execute.schema.ts` | `query: z.string()`, `near: z.string()`, `price: z.number().min(1).max(4).nullable()`, `open_now: z.boolean()`, `limit: z.number().min(1).max(50).default(10)` |
-| `envSchema` | `config/env.ts` | `PORT`, `NODE_ENV`, `GEMINI_API_KEY`, `FOURSQUARE_API_KEY`, `ALLOWED_ORIGINS` |
+| `envSchema`          | `config/env.ts`     | `PORT`, `NODE_ENV`, `GEMINI_API_KEY`, `FOURSQUARE_API_KEY`, `ALLOWED_ORIGINS`                                                                                  |
 
 ## Authentication
 
@@ -197,7 +201,11 @@ We retain the **middleware pattern** from flux-ai-be but replace the logic:
 
 ```typescript
 // code-gate.middleware.ts
-export const codeGateMiddleware = (req: Request, _res: Response, next: NextFunction) => {
+export const codeGateMiddleware = (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+) => {
   const code = req.query.code;
   if (code !== 'pioneerdevai') {
     throw new UnauthorizedError('Invalid or missing access code');
@@ -207,6 +215,7 @@ export const codeGateMiddleware = (req: Request, _res: Response, next: NextFunct
 ```
 
 Applied at route level, same as `authMiddleware` was used in flux-ai-be:
+
 ```typescript
 router.get('/execute', codeGateMiddleware, executeController.search);
 ```
@@ -219,7 +228,10 @@ Same pattern as flux-ai-be: `AppError` base class → subclass per status → ce
 
 ```typescript
 export class UpstreamError extends AppError {
-  constructor(message: string = 'External service unavailable', meta?: Record<string, unknown>) {
+  constructor(
+    message: string = 'External service unavailable',
+    meta?: Record<string, unknown>,
+  ) {
     super(message, HTTP_STATUS.BAD_GATEWAY, 'UPSTREAM_ERROR', undefined, meta);
   }
 }
@@ -311,10 +323,10 @@ client/
 
 Both Render and Railway support setting a **Root Directory** per service from a monorepo. You create two services pointing to the same repo:
 
-| Service | Root Directory | Build Command | Start Command |
-|---------|---------------|---------------|---------------|
-| Backend | `/server` | `bun install` | `bun run start` |
-| Frontend | `/client` | `pnpm install && pnpm build` | Serve `dist/` as static |
+| Service  | Root Directory | Build Command                | Start Command           |
+| -------- | -------------- | ---------------------------- | ----------------------- |
+| Backend  | `/server`      | `bun install`                | `bun run start`         |
+| Frontend | `/client`      | `pnpm install && pnpm build` | Serve `dist/` as static |
 
 The frontend's `vite.config.ts` will proxy `/api/*` to the backend URL in dev, and in production, the `api-client.ts` will point to the deployed backend URL via an env var (`VITE_API_URL`).
 
@@ -346,6 +358,7 @@ cd server && bun test
 ```
 
 ### Manual Verification
+
 - Open the frontend in browser → type a search → verify results display
 - Test the API endpoint directly in browser/curl
 - Test with edge cases: empty message, very long message, nonsense input
