@@ -21,7 +21,7 @@ flowchart LR
 
     subgraph External["External Services"]
         GEM["Google Gemini API"]
-        FS4["Foursquare Places API v3"]
+        FS4["Foursquare Places API"]
     end
 
     FE -->|"GET /api/execute"| API
@@ -50,7 +50,7 @@ flowchart LR
 
 | Field        | Type                                            | Description                            |
 | ------------ | ----------------------------------------------- | -------------------------------------- |
-| `id`         | `string`                                        | Foursquare `fsq_id`                    |
+| `id`         | `string`                                        | Foursquare `fsq_place_id`              |
 | `name`       | `string`                                        | Restaurant name                        |
 | `address`    | `string`                                        | Formatted address                      |
 | `categories` | `{ name: string; icon: string }[]`              | Cuisine/category labels with icon URLs |
@@ -130,7 +130,7 @@ flowchart LR
 3. LLM output is validated with Zod before querying Foursquare
 4. If LLM returns invalid values (e.g., `price: 5`), retry once, then fail with 422
 5. If Foursquare returns 0 results, return empty `results: []` with 200 (not an error)
-6. Always include `categories=13065` (Restaurant) in Foursquare queries to filter non-restaurants
+6. Category filtering is handled naturally by the LLM's `query` param (e.g., "sushi", "Italian") rather than the `fsq_category_ids` filter, since the 2025 API uses hex-format category IDs
 7. Transform Foursquare response to strip noisy/irrelevant fields
 
 ## Core Business Logic
@@ -164,7 +164,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     A["Validated SearchParams"] --> B["Map to Foursquare query params"]
-    B --> C["Set categories=13065"]
+    B --> C["Add sort=RELEVANCE"]
     C --> D["Add optional: price, open_now, sort"]
     D --> E["Request specific fields only"]
     E --> F["fetch Foursquare API"]
@@ -179,13 +179,24 @@ flowchart TD
 
 **Parameter mapping:**
 
-| SearchParams field | Foursquare param            |
-| ------------------ | --------------------------- |
-| `query`            | `query`                     |
-| `near`             | `near`                      |
-| `price` (exact)    | `min_price` AND `max_price` |
-| `open_now`         | `open_now`                  |
-| `limit`            | `limit`                     |
+| SearchParams field | Foursquare param             |
+| ------------------ | ---------------------------- |
+| `query`            | `query`                      |
+| `near`             | `near`                       |
+| `open_now`         | `open_now`                   |
+| `limit`            | `limit`                      |
+| _(always set)_     | `sort=RELEVANCE`             |
+
+> [!IMPORTANT]
+> **Foursquare API (2025-06-17 version):**
+> - Base URL: `https://places-api.foursquare.com/places/search`
+> - Auth: `Authorization: Bearer <KEY>` (Bearer prefix required)
+> - Required header: `X-Places-Api-Version: 2025-06-17`
+> - Category IDs now use hex format (e.g., `4bf58dd8d48988d1d2941735`), not numeric `13065`
+> - Response ID field: `fsq_place_id` (not `fsq_id`)
+> - Free-tier available fields: `fsq_place_id`, `name`, `location`, `categories`, `distance`
+> - Premium fields (`rating`, `price`, `hours`, `geocodes`, `photos`) require paid API credits — return null on free tier
+> - `min_price`/`max_price` query filters are also premium-only
 
 ## Validation Schemas (Zod)
 
