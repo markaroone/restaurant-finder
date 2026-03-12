@@ -1,6 +1,7 @@
 import { apiClient } from '@/lib/api-client';
 import type { ApiResponse } from '@/types/api.types';
 import type { ExecuteResponse } from '@/types/restaurant';
+import { logger } from '@/utils/logger';
 import { withApiError } from '@/utils/with-api-error';
 
 /**
@@ -9,6 +10,8 @@ import { withApiError } from '@/utils/with-api-error';
  */
 export const searchRestaurants = withApiError(
   async (message: string): Promise<ApiResponse<ExecuteResponse>> => {
+    logger.log(ENV.API_CODE);
+
     return apiClient
       .get('execute', {
         searchParams: { message, code: ENV.API_CODE },
