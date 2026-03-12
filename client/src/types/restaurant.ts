@@ -37,4 +37,10 @@ export type SearchParams = {
 export type ExecuteResponse = {
   results: Restaurant[];
   searchParams: SearchParams;
+  meta: {
+    resultCount: number;
+    searchedAt: string;
+    /** Contextual label for distance, e.g. "away from La Union" or "away from you". */
+    distanceLabel: string;
+  };
 };

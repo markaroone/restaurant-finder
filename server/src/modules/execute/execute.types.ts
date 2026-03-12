@@ -41,5 +41,7 @@ export type ExecuteResponse = {
   meta: {
     resultCount: number;
     searchedAt: string;
+    /** Contextual label for distance, e.g. "away from La Union" or "away from you". */
+    distanceLabel: string;
   };
 };

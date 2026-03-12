@@ -50,7 +50,10 @@ export const RestaurantList = ({
         {data?.searchParams != null && (
           <span className="text-sm font-medium text-muted-foreground">
             {results.length} result{results.length !== 1 ? 's' : ''} for &quot;
-            {data.searchParams.query}&quot; near {data.searchParams.near}
+            {data.searchParams.query}&quot;{' '}
+            {data.searchParams.near
+              ? `near ${data.searchParams.near}`
+              : 'near you'}
           </span>
         )}
       </div>
@@ -62,6 +65,7 @@ export const RestaurantList = ({
             key={restaurant.id}
             restaurant={restaurant}
             alternate={index % 2 !== 0}
+            distanceLabel={data?.meta?.distanceLabel}
           />
         ))}
       </div>
