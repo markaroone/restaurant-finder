@@ -31,10 +31,23 @@ export const useSearchRestaurants = () => {
     enabled: queryMessage.length > 0,
     staleTime: 1000 * 60 * 5, // 5 minutes — same query won't re-fetch
     retry: 1,
+
+    // Sort results by distance (nearest first, nulls last).
+    // Runs on cached data only — no refetch.
+    select: (response) => {
+      const sorted = [...response.data.results].sort((a, b) => {
+        if (a.distance == null && b.distance == null) return 0;
+        if (a.distance == null) return 1;
+        if (b.distance == null) return -1;
+        return a.distance - b.distance;
+      });
+
+      return { ...response.data, results: sorted };
+    },
   });
 
   return {
-    data: query.data?.data ?? null,
+    data: query.data ?? null,
     isLoading: query.isLoading || query.isFetching,
     isError: query.isError,
     error: query.error,

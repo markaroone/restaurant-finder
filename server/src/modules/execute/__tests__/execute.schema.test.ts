@@ -102,7 +102,7 @@ describe('searchParamsSchema', () => {
       near: 'Los Angeles',
       price: 2,
       open_now: true,
-      limit: 10,
+      limit: 20,
       is_food_related: true,
     });
     expect(result.success).toBe(true);
@@ -112,7 +112,7 @@ describe('searchParamsSchema', () => {
         near: 'Los Angeles',
         price: 2,
         open_now: true,
-        limit: 10,
+        limit: 20,
         is_food_related: true,
       });
     }
@@ -127,7 +127,7 @@ describe('searchParamsSchema', () => {
       expect(result.data.near).toBe('');
       expect(result.data.price).toBeNull();
       expect(result.data.open_now).toBe(false);
-      expect(result.data.limit).toBe(10);
+      expect(result.data.limit).toBe(20);
       expect(result.data.is_food_related).toBe(true);
     }
   });

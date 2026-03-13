@@ -29,7 +29,7 @@ const validSearchParams: SearchParams = {
   near: 'Los Angeles',
   price: null,
   open_now: false,
-  limit: 10,
+  limit: 20,
   is_food_related: true,
 };
 

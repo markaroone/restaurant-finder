@@ -33,6 +33,7 @@ export const RestaurantList = ({
   if (isError && error != null)
     return <ErrorDisplay error={error} onRetry={onRetry} />;
 
+  // Results arrive pre-sorted by distance from query `select`
   const results = data?.results ?? [];
   const hasResults = results.length > 0;
 
@@ -53,7 +54,7 @@ export const RestaurantList = ({
             {data.searchParams.query}&quot;{' '}
             {data.searchParams.near
               ? `near ${data.searchParams.near}`
-              : 'near you'}
+              : 'nearby'}
           </span>
         )}
       </div>

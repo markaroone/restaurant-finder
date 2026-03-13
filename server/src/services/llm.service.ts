@@ -77,7 +77,7 @@ Extraction rules:
 - Extract the location into "near"
 - For price: 1=cheap/budget, 2=moderate, 3=expensive/upscale, 4=very expensive/fine dining. Use 0 if not specified.
 - For open_now: only set to true if the user explicitly says "open now", "currently open", or similar phrases
-- For limit: default to 10 unless the user asks for a specific number of results
+- For limit: default to 20 unless the user asks for a specific number of results
 - If the user's message is vague about cuisine, use a general term like "restaurant"
 - Always respond with valid parameters. Never refuse or add explanations.
 

@@ -38,7 +38,7 @@ export const searchParamsSchema = z.object({
   near: z.string().default(''),
   price: z.number().int().min(1).max(4).nullable().default(null),
   open_now: z.boolean().default(false),
-  limit: z.number().int().min(1).max(50).default(10),
+  limit: z.number().int().min(1).max(50).default(20),
   is_food_related: z.boolean().default(true),
 });
 
