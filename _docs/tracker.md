@@ -162,6 +162,21 @@ Conducted frontend state architecture review focused on state desync, query key 
 
 ---
 
+### Phase 4.10: UX Audit & Accessibility
+
+Conducted UX and a11y audit from the perspective of an accessibility advocate. Implemented 8 fixes focused on screen readers, keyboard navigation, and mobile UX.
+
+- [x] U1: Added `aria-live="polite"` region to `RestaurantList`
+- [x] U2: Focus management after search via `useFocusOnResults` hook
+- [x] U3: `aria-hidden` on decorative icons in cards and errors
+- [x] U4: Accessible "View on Maps" link names
+- [x] U5: Loading skeleton screen reader announcement (`sr-only`)
+- [x] U6/U7: Explicit `aria-label` / `aria-hidden` on search input/icon
+- [x] U12: Bumped mobile touch targets for pills and sort dropdown
+- [x] Implemented dynamic, time-based quick search pills with Lucide icons
+
+---
+
 ### Phase 5: Deployment & Documentation
 
 - [ ] Deploy backend to Render/Railway (root: `/server`)
@@ -186,3 +201,4 @@ Conducted frontend state architecture review focused on state desync, query key 
 | 2026-03-14 | Phase 4.7 Resiliency: Gemini 15s abort, Express 20s timeout, GatewayTimeoutError. ADR-013.                    |
 | 2026-03-14 | Phase 4.8 Frontend State: query key geolocation fix, purified API function, staleTime docs.                   |
 | 2026-03-14 | Phase 4.9 UI Polish & Client Sorting: dynamic sorting dropdown (Relevance/Distance) and reactivity fixes.     |
+| 2026-03-15 | Phase 4.10 UX Audit: 8 a11y fixes (ARIA, focus, touch targets) and dynamic time-based quick search pills.     |
