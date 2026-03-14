@@ -79,7 +79,7 @@ export const RestaurantCard = ({
           <div className="flex flex-col gap-1.5 text-muted-foreground">
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 shrink-0" />
-              <p className="text-sm">{restaurant.address}</p>
+              <p className="text-sm">{restaurant.address || '-'}</p>
             </div>
 
             {restaurant.distance != null && (

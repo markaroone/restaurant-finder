@@ -11,15 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSearchActions } from '@/stores/search-store';
 import { cn } from '@/utils/cn';
-
-const QUICK_SEARCHES = [
-  { label: 'Sushi', query: 'sushi near me' },
-  { label: 'Tacos', query: 'tacos near me' },
-  { label: 'Pizza', query: 'pizza near me' },
-  { label: 'Burgers', query: 'burgers near me' },
-  { label: 'Thai', query: 'thai food near me' },
-  { label: 'Healthy', query: 'healthy food near me' },
-] as const;
+import { getQuickSearches } from '@/utils/quick-searches';
 
 type SearchBarProps = {
   isLoading: boolean;
@@ -37,6 +29,7 @@ export const SearchBar = ({
   onSearch,
 }: SearchBarProps): ReactElement => {
   const [value, setValue] = useState('');
+  const [quickSearches] = useState(() => getQuickSearches());
   const { search } = useSearchActions();
 
   const handleSubmit = useCallback(
@@ -95,7 +88,7 @@ export const SearchBar = ({
       </form>
 
       <div className="mt-6 flex flex-wrap justify-center gap-3">
-        {QUICK_SEARCHES.map((chip) => (
+        {quickSearches.map((chip) => (
           <button
             key={chip.label}
             type="button"
@@ -107,6 +100,7 @@ export const SearchBar = ({
               'disabled:cursor-not-allowed disabled:opacity-50',
             )}
           >
+            <chip.icon className="h-4 w-4 text-forest" aria-hidden="true" />
             {chip.label}
           </button>
         ))}

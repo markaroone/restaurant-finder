@@ -6,26 +6,10 @@ import { RestaurantList } from '@/components/restaurant-list';
 import { SearchBar } from '@/components/search-bar';
 import { useSearchRestaurants } from '@/hooks/use-search-restaurants';
 import { useSortBy } from '@/stores/sort-store';
-import type { Restaurant } from '@/types/restaurant';
 import { formatSearchSummary } from '@/utils/format';
+import { sortRestaurants } from '@/utils/sort';
 
-/**
- * Sort restaurants by distance (nearest first, nulls last).
- * Pure function — safe to call from useMemo.
- */
-const sortResults = (
-  results: Restaurant[],
-  sortBy: 'relevance' | 'distance',
-): Restaurant[] => {
-  if (sortBy === 'relevance') return results;
 
-  return [...results].sort((a, b) => {
-    if (a.distance == null && b.distance == null) return 0;
-    if (a.distance == null) return 1;
-    if (b.distance == null) return -1;
-    return a.distance - b.distance;
-  });
-};
 
 /**
  * Search content area — composes SearchBar with RestaurantList.
@@ -45,7 +29,7 @@ export const SearchContent = (): ReactElement => {
   }, [queryMessage, triggerSearch]);
 
   const sortedResults = useMemo(
-    () => sortResults(data?.results ?? [], sortBy),
+    () => sortRestaurants(data?.results ?? [], sortBy),
     [data?.results, sortBy],
   );
 
