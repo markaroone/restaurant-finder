@@ -2,7 +2,7 @@
 
 **Status:** IN PROGRESS
 **Current Phase:** Phase 5: Deployment & Documentation
-**Next Immediate Step:** Merge `fix/resiliency-timeouts` branch, then start Phase 5 (deploy + README)
+**Next Immediate Step:** Merge `fix/query-key-geolocation` branch, then start Phase 5 (deploy + README)
 **Last Updated:** 2026-03-14
 
 ## The "Next Immediate Step"
@@ -10,6 +10,7 @@
 > **AI Instruction:** Read this section to know what to do next.
 
 - [x] Merge `fix/resiliency-timeouts` branch to `main`
+- [x] Merge `fix/query-key-geolocation` branch to `main`
 - [ ] Begin Phase 5: Deployment & Documentation
 
 ## Development Checklist
@@ -141,6 +142,17 @@ Conducted network chaos monkey audit focused on timeout gaps, cascading failures
 
 ---
 
+### Phase 4.8: Frontend State Audit
+
+Conducted frontend state architecture review focused on state desync, query key coverage, race conditions, and rendering efficiency.
+
+- [x] S1: Added geolocation (`ll`) to TanStack Query key — prevents stale cache when GPS changes between searches
+- [x] S1: Purified `searchRestaurants` API function — accepts `ll` as parameter instead of reading store internally
+- [x] S2: Extracted `RESTAURANT_STALE_TIME` constant (5 min) with intent comment
+- [x] S2: Added staleTime override note to global `query-client.ts`
+
+---
+
 ### Phase 5: Deployment & Documentation
 
 - [ ] Deploy backend to Render/Railway (root: `/server`)
@@ -163,3 +175,4 @@ Conducted network chaos monkey audit focused on timeout gaps, cascading failures
 | 2026-03-14 | Phase 4.5 Security: access code env var, per-route rate limiting, conditional error meta. ADR-010, ADR-011.   |
 | 2026-03-14 | Phase 4.6 Relevance: IP geo guard, prompt fixes (limit, negation, non-Latin). ADR-012.                        |
 | 2026-03-14 | Phase 4.7 Resiliency: Gemini 15s abort, Express 20s timeout, GatewayTimeoutError. ADR-013.                    |
+| 2026-03-14 | Phase 4.8 Frontend State: query key geolocation fix, purified API function, staleTime docs.                    |
