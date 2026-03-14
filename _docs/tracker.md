@@ -153,6 +153,15 @@ Conducted frontend state architecture review focused on state desync, query key 
 
 ---
 
+### Phase 4.9: UI Polish & Client Sorting
+
+- [x] Client-side sorting dropdown (Relevance / Distance) using `shadcn/select`
+- [x] Fixed React Query structural sharing issue by removing query `select` callback
+- [x] Refactored sorting derived state into `useMemo` in UI layer
+- [x] Zustand store (`sort-store.ts`) for managing UI sort state
+
+---
+
 ### Phase 5: Deployment & Documentation
 
 - [ ] Deploy backend to Render/Railway (root: `/server`)
@@ -175,4 +184,5 @@ Conducted frontend state architecture review focused on state desync, query key 
 | 2026-03-14 | Phase 4.5 Security: access code env var, per-route rate limiting, conditional error meta. ADR-010, ADR-011.   |
 | 2026-03-14 | Phase 4.6 Relevance: IP geo guard, prompt fixes (limit, negation, non-Latin). ADR-012.                        |
 | 2026-03-14 | Phase 4.7 Resiliency: Gemini 15s abort, Express 20s timeout, GatewayTimeoutError. ADR-013.                    |
-| 2026-03-14 | Phase 4.8 Frontend State: query key geolocation fix, purified API function, staleTime docs.                    |
+| 2026-03-14 | Phase 4.8 Frontend State: query key geolocation fix, purified API function, staleTime docs.                   |
+| 2026-03-14 | Phase 4.9 UI Polish & Client Sorting: dynamic sorting dropdown (Relevance/Distance) and reactivity fixes.     |

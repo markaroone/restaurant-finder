@@ -44,8 +44,9 @@ Restaurant Finder eliminates the friction between how users **think** and how se
   - Name
   - Address (formatted)
   - Category / cuisine type
-  - Price level (visual indicator)
-  - Open/closed status
+  - Distance from search center
+  - Rating (if available from Foursquare free tier)
+- **Sorting Options:** Users can change the default sort order from Relevance (default AI ranking) to Distance via a dropdown menu.
   - Distance from search center
   - Rating (if available from Foursquare free tier)
 

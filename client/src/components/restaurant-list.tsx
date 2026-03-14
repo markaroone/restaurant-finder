@@ -4,10 +4,11 @@ import { EmptyState } from '@/components/empty-state';
 import { ErrorDisplay } from '@/components/error-display';
 import { LoadingSkeleton } from '@/components/loading-skeleton';
 import { RestaurantCard } from '@/components/restaurant-card';
+import { SortSelect } from '@/components/sort-select';
 import type { Restaurant } from '@/types/restaurant';
 
 type RestaurantListProps = {
-  /** Pre-sorted restaurant results from query `select`. */
+  /** Restaurant results (sorted by the UI layer). */
   results: Restaurant[];
   /** e.g. '3 results for "sushi" near La Union' or '10 results for "tacos" nearby'. */
   searchSummary?: string;
@@ -50,14 +51,17 @@ export const RestaurantList = ({
     <Fragment>
       {/* Results header */}
       <div className="mb-8 flex items-center justify-between px-2">
-        <h2 className="text-2xl font-bold tracking-tight text-forest">
-          Top Recommendations
-        </h2>
-        {searchSummary && (
-          <span className="text-sm font-medium text-muted-foreground">
-            {searchSummary}
-          </span>
-        )}
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-forest">
+            Top Recommendations
+          </h2>
+          {searchSummary && (
+            <span className="text-sm font-medium text-muted-foreground">
+              {searchSummary}
+            </span>
+          )}
+        </div>
+        <SortSelect />
       </div>
 
       {/* Cards */}
