@@ -115,12 +115,20 @@ export const searchRestaurants = async (
         { status: error.response.status, body: errorBody },
         '❌ Foursquare API error',
       );
+
+      // Only include raw upstream error details in development.
+      // Production responses omit internal API details to prevent info leakage.
+      const meta =
+        env.NODE_ENV === 'development'
+          ? {
+              foursquareStatus: error.response.status,
+              foursquareBody: errorBody,
+            }
+          : { foursquareStatus: error.response.status };
+
       throw new UpstreamError(
         `Restaurant search service returned an error (${error.response.status})`,
-        {
-          foursquareStatus: error.response.status,
-          foursquareBody: errorBody,
-        },
+        meta,
       );
     }
     throw error;

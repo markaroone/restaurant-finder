@@ -2,11 +2,10 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
-  NODE_ENV: z
-    .enum(['development', 'production', 'test'])
-    .default('development'),
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('production'),
   GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY is required'),
   FOURSQUARE_API_KEY: z.string().min(1, 'FOURSQUARE_API_KEY is required'),
+  API_ACCESS_CODE: z.string().min(1, 'API_ACCESS_CODE is required'),
   ALLOWED_ORIGINS: z
     .string()
     .default('http://localhost:5173')

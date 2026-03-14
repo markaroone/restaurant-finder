@@ -376,4 +376,77 @@ This is a classic **false positive vs. false negative trade-off**:
 
 ---
 
+## ADR-010: Per-Route Rate Limiting on /api/execute
+
+**Status:** Accepted
+**Date:** 2026-03-14
+
+### Context
+
+Each call to `/api/execute` triggers two paid API calls: Gemini (LLM parsing) and Foursquare (place search). The existing global rate limiter (100 requests / 15 minutes per IP) applies to all routes equally, including `/health`. An attacker who knows the access code could fire 100 searches in 15 minutes, consuming significant API budget (~$1–10/day, scaling to ~$100+/day sustained).
+
+### Decision
+
+Add a **per-route rate limiter** on `/api/execute` with a stricter threshold: **10 requests per minute per IP**. The global limiter remains as an outer defense layer for all routes.
+
+### Rationale
+
+- **Budget protection** — Caps the most expensive endpoint independently from cheap routes like health checks.
+- **Layered defense** — Global limiter handles broad abuse; route limiter targets the costly pipeline.
+- **No user impact** — 10 searches/minute is generous for normal usage. A real user rarely exceeds 2-3 searches/minute.
+- **Test compatibility** — Rate limiter is skipped in test mode (`NODE_ENV=test`), same pattern as the global limiter.
+
+### Alternatives Considered
+
+| Alternative              | Why Rejected                                                       |
+| ------------------------ | ------------------------------------------------------------------ |
+| Lower global limit only  | Would throttle health checks and future lightweight endpoints      |
+| Per-access-code limiting | All users share the same code — no differentiation possible        |
+| Token bucket algorithm   | Over-engineered for current traffic; `express-rate-limit` suffices |
+
+### Consequences
+
+- Middleware chain for `/api/execute` is now: code-gate → executeLimiter → validation → controller.
+- Constants live in `app.constants.ts` (`EXECUTE_RATE_LIMIT`) for easy tuning.
+- A user exceeding 10 req/min gets a `429` with message: "Too many searches. Please slow down and try again."
+
+---
+
+## ADR-011: Conditional Upstream Error Meta (Dev vs Production)
+
+**Status:** Accepted
+**Date:** 2026-03-14
+
+### Context
+
+When the Foursquare API returns an error, the backend captures the raw error response body (including internal API parameter names, account tier info, and version details) and includes it in the `meta` field of the RFC 7807 error response sent to the client.
+
+This is useful for debugging during development (the frontend developer can see exactly what Foursquare rejected), but constitutes **information leakage** in production — exposing internal API details to potential attackers.
+
+### Decision
+
+Include the raw Foursquare error body in `meta.foursquareBody` **only when `NODE_ENV=development`**. In production, `meta` contains only the HTTP status code (`foursquareStatus`). The full error body is always logged server-side regardless of environment.
+
+### Rationale
+
+- **DX in development** — Frontend developers can diagnose Foursquare failures without checking backend logs.
+- **Security in production** — Internal API details (parameter names, account tier, version) are not exposed to end users.
+- **Server-side logging unaffected** — The `logger.error()` call captures the full error body in all environments, so no debugging information is lost.
+
+### Alternatives Considered
+
+| Alternative              | Why Rejected                                                     |
+| ------------------------ | ---------------------------------------------------------------- |
+| Always include full meta | Information leakage risk in production                           |
+| Never include error body | Hurts DX — developers must check server logs for every FSQ error |
+| Separate debug endpoint  | Over-engineered for a coding test; adds surface area             |
+
+### Consequences
+
+- Error responses in production are "opaque" — they confirm a failure occurred but not why.
+- Developers must set `NODE_ENV=development` locally to see full Foursquare error details.
+- Same pattern can be extended to Gemini API errors if needed in the future.
+
+---
+
 _More ADRs will be added during development as decisions emerge._

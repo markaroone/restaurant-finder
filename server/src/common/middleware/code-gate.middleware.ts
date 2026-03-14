@@ -1,8 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 
 import { UnauthorizedError } from '@/common/utils/api-errors';
-
-const ACCESS_CODE = 'pioneerdevai';
+import { env } from '@/config/env';
 
 /**
  * Code-Gate Middleware.
@@ -16,7 +15,7 @@ export const codeGateMiddleware = (
 ): void => {
   const code = req.query.code;
 
-  if (code !== ACCESS_CODE) {
+  if (code !== env.API_ACCESS_CODE) {
     throw new UnauthorizedError('Invalid or missing access code');
   }
 
