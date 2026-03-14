@@ -4,12 +4,11 @@ import type { ReactElement } from 'react';
 
 import { RestaurantList } from '@/components/restaurant-list';
 import { SearchBar } from '@/components/search-bar';
+import { useFocusOnResults } from '@/hooks/use-focus-on-results';
 import { useSearchRestaurants } from '@/hooks/use-search-restaurants';
 import { useSortBy } from '@/stores/sort-store';
 import { formatSearchSummary } from '@/utils/format';
 import { sortRestaurants } from '@/utils/sort';
-
-
 
 /**
  * Search content area — composes SearchBar with RestaurantList.
@@ -28,6 +27,10 @@ export const SearchContent = (): ReactElement => {
     }
   }, [queryMessage, triggerSearch]);
 
+  const resultsRef = useFocusOnResults(
+    data !== null && data.results.length > 0,
+  );
+
   const sortedResults = useMemo(
     () => sortRestaurants(data?.results ?? [], sortBy),
     [data?.results, sortBy],
@@ -43,7 +46,7 @@ export const SearchContent = (): ReactElement => {
     <div className="mx-auto flex max-w-240 flex-col px-6 py-12 lg:py-20">
       <SearchBar isLoading={isLoading} onSearch={triggerSearch} />
 
-      <div className="mt-12">
+      <div ref={resultsRef} tabIndex={-1} className="mt-12 outline-none">
         <RestaurantList
           results={sortedResults}
           searchSummary={searchSummary}

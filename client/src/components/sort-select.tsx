@@ -29,7 +29,7 @@ export const SortSelect = (): ReactElement => {
   return (
     <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
       <SelectTrigger
-        className="h-8 w-fit border-border text-sm font-medium text-muted-foreground"
+        className="h-9 w-fit border-border text-sm font-medium text-muted-foreground"
         aria-label="Sort results by"
       >
         <span className="text-xs text-muted-foreground">Sort:</span>

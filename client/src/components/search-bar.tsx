@@ -65,9 +65,13 @@ export const SearchBar = ({
       <form onSubmit={handleSubmit} className="mx-auto mt-8 w-full max-w-2xl">
         <div className="flex h-14 w-full items-stretch overflow-hidden rounded-xl border border-border shadow-lg">
           <div className="flex items-center justify-center bg-card pl-5">
-            <Search className="h-5 w-5 text-muted-foreground" />
+            <Search
+              className="h-5 w-5 text-muted-foreground"
+              aria-hidden="true"
+            />
           </div>
           <Input
+            aria-label="Search for restaurants"
             className="h-full flex-1 border-none bg-card text-lg font-medium shadow-none focus-visible:ring-0"
             placeholder="Try 'sushi in downtown LA'..."
             value={value}
@@ -95,7 +99,7 @@ export const SearchBar = ({
             onClick={() => handleChipClick(chip.query)}
             disabled={isLoading}
             className={cn(
-              'flex items-center gap-2 rounded-full border border-border bg-secondary px-5 py-2 text-sm font-medium text-secondary-foreground transition-all',
+              'flex items-center gap-2 rounded-full border border-border bg-secondary px-5 py-2.5 text-sm font-medium text-secondary-foreground transition-all',
               'hover:border-forest/20 hover:shadow-sm',
               'disabled:cursor-not-allowed disabled:opacity-50',
             )}

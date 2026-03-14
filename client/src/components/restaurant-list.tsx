@@ -1,4 +1,4 @@
-import { Fragment, type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 
 import { EmptyState } from '@/components/empty-state';
 import { ErrorDisplay } from '@/components/error-display';
@@ -36,19 +36,33 @@ export const RestaurantList = ({
   hasSearched,
   onRetry,
 }: RestaurantListProps): ReactElement => {
-  if (isLoading) return <LoadingSkeleton />;
+  if (isLoading)
+    return (
+      <div role="status" aria-live="polite" aria-label="Search results">
+        <LoadingSkeleton />
+      </div>
+    );
 
-  if (isError && error != null)
-    return <ErrorDisplay error={error} onRetry={onRetry} />;
+  if (isError && error !== null)
+    return (
+      <div role="region" aria-live="polite" aria-label="Search results">
+        <ErrorDisplay error={error} onRetry={onRetry} />
+      </div>
+    );
 
   const hasResults = results.length > 0;
 
-  if (!hasResults && hasSearched) return <EmptyState hasSearched />;
+  if (!hasResults && hasSearched)
+    return (
+      <div role="region" aria-live="polite" aria-label="Search results">
+        <EmptyState hasSearched />
+      </div>
+    );
 
   if (!hasSearched) return <EmptyState hasSearched={false} />;
 
   return (
-    <Fragment>
+    <div role="region" aria-live="polite" aria-label="Search results">
       {/* Results header */}
       <div className="mb-8 flex items-center justify-between px-2">
         <div>
@@ -75,6 +89,6 @@ export const RestaurantList = ({
           />
         ))}
       </div>
-    </Fragment>
+    </div>
   );
 };

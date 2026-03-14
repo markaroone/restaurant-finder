@@ -8,7 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton';
  */
 export const LoadingSkeleton = (): ReactNode => {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" role="status" aria-label="Loading results">
+      <span className="sr-only">Loading restaurant results…</span>
       {/* Results header skeleton */}
       <div className="flex items-center justify-between px-2">
         <Skeleton className="h-8 w-56" />

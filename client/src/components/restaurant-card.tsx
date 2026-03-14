@@ -63,7 +63,7 @@ export const RestaurantCard = ({
                 />
               </span>
             ) : (
-              <Utensils className="h-5 w-5 text-forest" />
+              <Utensils className="h-5 w-5 text-forest" aria-hidden="true" />
             )}
             <span className="text-xs font-bold tracking-widest text-muted-foreground uppercase">
               {categoryText}
@@ -78,13 +78,13 @@ export const RestaurantCard = ({
           {/* Metadata */}
           <div className="flex flex-col gap-1.5 text-muted-foreground">
             <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 shrink-0" />
+              <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />
               <p className="text-sm">{restaurant.address || '-'}</p>
             </div>
 
             {restaurant.distance != null && (
               <div className="flex items-center gap-2">
-                <Navigation className="h-4 w-4 shrink-0" />
+                <Navigation className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <p className="text-sm font-medium text-soft-forest">
                   {formatDistance(restaurant.distance)}
                   {distanceLabel && (
@@ -106,9 +106,14 @@ export const RestaurantCard = ({
               asChild
               className="w-full bg-forest font-bold text-secondary hover:bg-forest/90"
             >
-              <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
+              <a
+                href={googleMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`View ${restaurant.name} on Google Maps (opens in new tab)`}
+              >
                 View on Maps
-                <ExternalLink className="ml-2 h-4 w-4" />
+                <ExternalLink className="ml-2 h-4 w-4" aria-hidden="true" />
               </a>
             </Button>
           </div>

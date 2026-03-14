@@ -36,7 +36,10 @@ export const ErrorDisplay = ({
   if (isMissingLocation)
     return (
       <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-        <MapPinOff className="mb-4 h-10 w-10 text-muted-foreground/50" />
+        <MapPinOff
+          className="mb-4 h-10 w-10 text-muted-foreground/50"
+          aria-hidden="true"
+        />
         <p className="max-w-sm text-sm text-muted-foreground">
           We couldn&apos;t determine your location. Try including a city, like{' '}
           <strong className="text-foreground">
@@ -51,7 +54,10 @@ export const ErrorDisplay = ({
   if (isNotFoodRelated)
     return (
       <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-        <UtensilsCrossed className="mb-4 h-10 w-10 text-muted-foreground/50" />
+        <UtensilsCrossed
+          className="mb-4 h-10 w-10 text-muted-foreground/50"
+          aria-hidden="true"
+        />
         <p className="max-w-sm text-sm text-muted-foreground">
           This app only searches for restaurants and food. Try something like{' '}
           <strong className="text-foreground">&quot;sushi near me&quot;</strong>{' '}
@@ -68,7 +74,10 @@ export const ErrorDisplay = ({
   if (isBadRequest)
     return (
       <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-        <SearchX className="mb-4 h-10 w-10 text-muted-foreground/50" />
+        <SearchX
+          className="mb-4 h-10 w-10 text-muted-foreground/50"
+          aria-hidden="true"
+        />
         <p className="max-w-sm text-sm text-muted-foreground">
           We couldn&apos;t understand that request. Try something like{' '}
           <strong className="text-foreground">
@@ -91,7 +100,10 @@ export const ErrorDisplay = ({
 
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/20 bg-destructive/5 px-6 py-16 text-center">
-      <AlertTriangle className="mb-4 h-12 w-12 text-destructive" />
+      <AlertTriangle
+        className="mb-4 h-12 w-12 text-destructive"
+        aria-hidden="true"
+      />
       <h3 className="mb-2 text-xl font-bold text-foreground">{title}</h3>
       <p className="mb-6 max-w-md text-sm text-muted-foreground">{subtitle}</p>
       <Button
@@ -99,7 +111,7 @@ export const ErrorDisplay = ({
         variant="outline"
         className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/10"
       >
-        <RefreshCw className="h-4 w-4" />
+        <RefreshCw className="h-4 w-4" aria-hidden="true" />
         Try again
       </Button>
     </div>
