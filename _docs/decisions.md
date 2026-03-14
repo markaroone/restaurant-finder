@@ -54,10 +54,11 @@ The Gemini SDK's `responseJsonSchema` guarantees the response _structure_ matche
 
 ### Decision
 
-Apply **two layers of validation**:
+Apply **two layers of validation** (later extended to three — see [ADR-014](#adr-014-unicode-sanitization-pre-processor)):
 
 1. **Layer 1 — SDK schema** — Guarantees JSON structure (types, field names)
 2. **Layer 2 — Zod schema** — Validates business rules (price 1-4, limit 1-50, non-empty strings)
+3. **Layer 0 — Unicode sanitization** — _(Added in ADR-014)_ Strips adversarial characters before the LLM sees the input
 
 ### Rationale
 
@@ -529,6 +530,68 @@ Implement a **layered timeout budget** where each layer is shorter than its pare
 - Changing any single timeout requires understanding the full cascade. Document the budget in code comments.
 - The `AbortSignal` cancels the client HTTP request but Gemini may still process the prompt server-side (and charge for it).
 - Future endpoints that don't call external APIs inherit the 20s Express timeout unnecessarily — acceptable overhead.
+
+---
+
+## ADR-014: Unicode Sanitization Pre-Processor
+
+**Status:** Accepted
+**Date:** 2026-03-15
+
+### Context
+
+An NLP fuzzing audit (Phase 4.11) revealed that adversarial Unicode input can silently degrade search quality. Zalgo text (combining diacritical marks stacked on base characters), zero-width joiners/non-joiners, null bytes, and variation selectors all pass the existing validation pipeline — Zod's `min(2)` / `max(500)` counts them as normal characters, and Gemini's structured output mode returns valid JSON. But the _values_ inside that JSON are corrupted: a Zalgo-mangled `"s̸u̷s̷h̴ì"` passes Zod's `min(1)` on `query`, yet Foursquare returns zero results for it.
+
+This is a **silent failure** — no error is thrown, the user just sees an empty result set with no explanation.
+
+### Decision
+
+Add a **Unicode sanitization layer** (`sanitizeUnicode()`) that runs _before_ the message reaches Gemini. This becomes **Layer 0** in the validation pipeline (see [ADR-002](#adr-002-double-validation--sdk-schema--zod)), promoting it from double to triple validation:
+
+```text
+Layer 0: sanitizeUnicode()     → strips adversarial characters
+Layer 1: Gemini SDK schema     → guarantees JSON structure
+Layer 2: Zod schema            → validates business rules
+```
+
+The sanitizer strips:
+
+| Category | Unicode Range | Why Removed |
+| --- | --- | --- |
+| Combining diacritical marks (Zalgo) | U+0300–U+036F, U+0489 | Corrupts base words → garbage API queries |
+| Zero-width characters (ZWSP, ZWNJ, ZWJ) | U+200B–U+200D, U+FEFF | Invisible padding, wastes LLM tokens |
+| Null bytes | U+0000 | Can truncate strings or break JSON parsing |
+| Variation selectors | U+FE00–U+FE0F | No semantic value, confuses downstream matching |
+
+The sanitizer also collapses multiple whitespace characters into a single space and trims. If the sanitized string is fewer than 2 characters, `parseMessage()` throws a `BadRequestError` immediately — skipping the LLM call entirely.
+
+The sanitizer does **NOT** remove:
+
+- **Emojis** — They carry semantic meaning (🍣 → "sushi") and the LLM prompt has explicit emoji translation rules.
+- **Non-Latin scripts** — Arabic, CJK, Cyrillic, Devanagari are all valid input languages.
+- **Standard diacritics** — Characters like é, ñ, ü are part of real words, not Zalgo.
+
+### Rationale
+
+- **Pre-LLM is the right place** — Sanitizing before Gemini sees the input prevents garbage-in-garbage-out. Post-LLM sanitization would be too late: the LLM would already return corrupted `query`/`near` values.
+- **Targeted stripping** — Only characters with zero semantic value are removed. This avoids the false-positive risk of over-sanitizing legitimate multilingual input.
+- **Cost savings** — Rejecting pure-Zalgo or pure-ZWSP inputs at Layer 0 avoids wasting a Gemini API call (~$0.30/1M tokens) on input that would produce unusable output.
+- **Complements existing prompt rules** — The SYSTEM_INSTRUCTION already handles emoji translation, slang, and multilingual text. The sanitizer handles what the LLM _cannot_ — invisible/corrupted characters that survive tokenization.
+
+### Alternatives Considered
+
+| Alternative | Why Rejected |
+| --- | --- |
+| Trust the LLM to handle Zalgo | Gemini sometimes passes through combining marks verbatim → silent 0-result failures |
+| Full Unicode normalization (NFC/NFD) | Too aggressive — would alter legitimate CJK and diacritical input |
+| Allowlist approach (only permit certain scripts) | Blocks legitimate scripts we haven't anticipated; fails-closed |
+| Post-LLM sanitization of `query`/`near` values | Too late — the LLM already misinterpreted the corrupted input |
+
+### Consequences
+
+- The validation pipeline is now triple-layered: sanitize → SDK schema → Zod. All three are cheap (<1ms combined for non-LLM layers).
+- Edge case: a user who _intentionally_ uses combining marks in a legitimate way (e.g., Vietnamese tonal marks) could have them stripped. In practice, JavaScript regex `[\u0300-\u036F]` covers combining marks that overlay existing characters (Zalgo), not precomposed Vietnamese characters like `ệ` which are single code points.
+- The `SYSTEM_INSTRUCTION` was also expanded in this phase with emoji handling, location translation, expanded `open_now` triggers, and contradiction handling rules — these are prompt tuning, not architectural decisions, so they are tracked in the Phase 4.11 changelog rather than a separate ADR.
 
 ---
 
