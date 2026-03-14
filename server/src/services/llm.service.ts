@@ -2,6 +2,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 
 import { BadRequestError, UpstreamError } from '@/common/utils/api-errors';
 import { logger } from '@/common/utils/logger';
+import { sanitizeUnicode } from '@/common/utils/sanitize';
 import { env } from '@/config/env';
 import { searchParamsSchema } from '@/modules/execute/execute.schema';
 import { SearchParams } from '@/modules/execute/execute.types';
@@ -79,33 +80,48 @@ Extraction rules:
 - For price: 1=cheap/budget, 2=moderate, 3=expensive/upscale, 4=very expensive/fine dining. Use 0 if not specified.
 - For price negations, infer the intended range: "not expensive" → price: 1 or 2, "not cheap" → price: 3 or 4
 - For query negations like "anything but sushi", extract a general term like "restaurant"
-- For open_now: only set to true if the user explicitly says "open now", "currently open", or similar phrases
+- For open_now: only set to true if the user explicitly says "open now", "currently open", "rn", "right now", "still open", "open rn", "open late", or similar urgency/availability phrases
 - For limit: default to 20 unless the user asks for a specific number of results
 - If the user's message is vague about cuisine, use a general term like "restaurant"
 - Always respond with valid parameters. Never refuse or add explanations.
 
+Emoji handling:
+- Translate food emojis to their English names (e.g., 🍣 → "sushi", 🍕 → "pizza", 🌮 → "tacos", 🍜 → "noodles", ☕ → "coffee")
+- Translate location emojis to their most common association (e.g., 🗽 → "New York", 🗼 → "Paris")
+- Ignore non-semantic emojis that don't map to a specific food or location
+- Do NOT interpret emoji quantity as price level (e.g., 💰💰💰 does not mean price: 3)
+
 Location rules:
 - If the user says "near me", "close to me", "around here", or "current location" WITHOUT naming a specific place, set "near" to an EMPTY STRING "". The app will use their GPS coordinates instead.
-- Always expand locations to their full, commonly-recognized form
+- Always expand locations to their full, commonly-recognized English form
+- Always translate locations to English (e.g., "東京都" → "Tokyo, Japan", "Москве" → "Moscow, Russia", "la torre eiffel" → "Eiffel Tower, Paris, France")
+- Expand common abbreviations: "dtla" → "Downtown Los Angeles, CA", "k-town" → "Koreatown, Los Angeles, CA"
 - "new brooklyn" → "Brooklyn, New York"
 - "downtown LA" → "downtown Los Angeles, CA"
 - "midtown" → "Midtown Manhattan, New York" (use best guess)
 - Include city and state/country when the user only provides a neighborhood name
 - Fix obvious typos in location names
+- For mixed-language queries, extract food and location separately and translate each to English
+
+Handling contradictions:
+- If the user provides contradictory price signals (e.g., "expensive but cheap"), default to price: 0 (unspecified)
+- If the user provides contradictory open/closed signals, default to open_now: false
+- Treat sarcasm as a literal query — do not try to infer the user's "real" intent
 
 Unsearchable criteria:
 - Ignore requests about specific deals, promotions, or freebies (e.g., "offers free cake")
 - Ignore requests about specific menu items — focus only on cuisine TYPE
-- Ignore requests about ambiance, dress code, parking, or non-food attributes
+- Ignore requests about ambiance, dress code, parking, quality ratings (e.g., "best", "worst"), or non-food attributes
 - These cannot be searched via the restaurant API; just extract what IS searchable`;
 
 /**
  * Parses a natural language message into structured search parameters
  * using Google Gemini with structured output mode.
  *
- * Uses a double-validation pattern:
- * 1. Gemini SDK guarantees valid JSON structure
- * 2. Zod validates business rules (price 1-4, limit 1-50, etc.)
+ * Uses a triple-validation pattern:
+ * 1. Unicode sanitization (strips adversarial characters)
+ * 2. Gemini SDK guarantees valid JSON structure
+ * 3. Zod validates business rules (price 1-4, limit 1-50, etc.)
  *
  * @param message - The user's natural language search query
  * @returns Validated SearchParams
@@ -113,6 +129,15 @@ Unsearchable criteria:
  * @throws UpstreamError if the Gemini API is unavailable
  */
 export const parseMessage = async (message: string): Promise<SearchParams> => {
+  // Pre-process: strip adversarial unicode before LLM sees it
+  const sanitized = sanitizeUnicode(message);
+
+  if (sanitized.length < 2) {
+    throw new BadRequestError(
+      "Your message doesn't contain enough readable text. Please try again with a food or restaurant query.",
+    );
+  }
+
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -125,7 +150,7 @@ export const parseMessage = async (message: string): Promise<SearchParams> => {
       try {
         response = await ai.models.generateContent({
           model: MODEL,
-          contents: message,
+          contents: sanitized,
           config: {
             systemInstruction: SYSTEM_INSTRUCTION,
             responseMimeType: 'application/json',

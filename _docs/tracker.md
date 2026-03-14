@@ -177,6 +177,22 @@ Conducted UX and a11y audit from the perspective of an accessibility advocate. I
 
 ---
 
+### Phase 4.11: NLP Fuzzing & Input Hardening
+
+Conducted NLP edge-case fuzzing audit targeting emoji/symbol overload, slang/idioms, contradictions/sarcasm, multilingual/mixed-script, and Unicode/Zalgo abuse vectors.
+
+- [x] Unicode sanitization pre-processor (`sanitizeUnicode()`) — strips Zalgo, zero-width chars, null bytes, variation selectors before LLM call
+  - ADR-014: Unicode Sanitization Pre-Processor
+- [x] SYSTEM_INSTRUCTION: emoji handling rules (food/location emoji → English translation)
+- [x] SYSTEM_INSTRUCTION: location translation to English (closes gap where only `query` was translated)
+- [x] SYSTEM_INSTRUCTION: expanded `open_now` triggers (`"rn"`, `"right now"`, `"still open"`, `"open late"`)
+- [x] SYSTEM_INSTRUCTION: contradiction handling defaults (contradictory price → 0, open/closed → false)
+- [x] SYSTEM_INSTRUCTION: location abbreviation expansion (`"dtla"`, `"k-town"`)
+- [x] SYSTEM_INSTRUCTION: quality ratings added to unsearchable criteria (`"best"`, `"worst"`)
+- [x] Updated ADR-002 cross-reference: double → triple validation pipeline
+
+---
+
 ### Phase 5: Deployment & Documentation
 
 - [ ] Deploy backend to Render/Railway (root: `/server`)
@@ -202,3 +218,4 @@ Conducted UX and a11y audit from the perspective of an accessibility advocate. I
 | 2026-03-14 | Phase 4.8 Frontend State: query key geolocation fix, purified API function, staleTime docs.                   |
 | 2026-03-14 | Phase 4.9 UI Polish & Client Sorting: dynamic sorting dropdown (Relevance/Distance) and reactivity fixes.     |
 | 2026-03-15 | Phase 4.10 UX Audit: 8 a11y fixes (ARIA, focus, touch targets) and dynamic time-based quick search pills.     |
+| 2026-03-15 | Phase 4.11 NLP Fuzzing: Unicode sanitizer, prompt hardening (emoji, location i18n, slang, contradictions). ADR-014. |
