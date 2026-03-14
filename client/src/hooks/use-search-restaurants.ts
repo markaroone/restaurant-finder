@@ -24,6 +24,10 @@ const RESTAURANT_STALE_TIME = 1000 * 60 * 5; // 5 minutes
  * Re-renders only happen when:
  * 1. `triggerSearch()` is called (local state changes)
  * 2. The query resolves/errors (TanStack Query state changes)
+ *
+ * NOTE: No `select` callback — returning raw data preserves React Query's
+ * structural sharing, which reuses object references across re-renders
+ * and avoids unnecessary downstream re-renders.
  */
 export const useSearchRestaurants = () => {
   const [queryMessage, setQueryMessage] = useState('');
@@ -47,23 +51,10 @@ export const useSearchRestaurants = () => {
     enabled: queryMessage.length > 0,
     staleTime: RESTAURANT_STALE_TIME,
     retry: 1,
-
-    // Sort results by distance (nearest first, nulls last).
-    // Runs on cached data only — no refetch.
-    select: (response) => {
-      const sorted = [...response.data.results].sort((a, b) => {
-        if (a.distance == null && b.distance == null) return 0;
-        if (a.distance == null) return 1;
-        if (b.distance == null) return -1;
-        return a.distance - b.distance;
-      });
-
-      return { ...response.data, results: sorted };
-    },
   });
 
   return {
-    data: query.data ?? null,
+    data: query.data?.data ?? null,
     isLoading: query.isLoading || query.isFetching,
     isError: query.isError,
     error: query.error,
