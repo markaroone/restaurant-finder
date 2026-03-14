@@ -4,10 +4,15 @@ import { EmptyState } from '@/components/empty-state';
 import { ErrorDisplay } from '@/components/error-display';
 import { LoadingSkeleton } from '@/components/loading-skeleton';
 import { RestaurantCard } from '@/components/restaurant-card';
-import type { ExecuteResponse } from '@/types/restaurant';
+import type { Restaurant } from '@/types/restaurant';
 
 type RestaurantListProps = {
-  data: ExecuteResponse | null;
+  /** Pre-sorted restaurant results from query `select`. */
+  results: Restaurant[];
+  /** e.g. '3 results for "sushi" near La Union' or '10 results for "tacos" nearby'. */
+  searchSummary?: string;
+  /** Contextual distance label, e.g. 'away from La Union' or 'away from you'. */
+  distanceLabel?: string;
   isLoading: boolean;
   isError: boolean;
   error: Error | null;
@@ -17,11 +22,13 @@ type RestaurantListProps = {
 
 /**
  * Restaurant results list — owns all conditional rendering.
- * Receives state props and renders the appropriate UI:
+ * Receives pre-extracted props and renders the appropriate UI:
  * loading skeleton, error, empty, or results list.
  */
 export const RestaurantList = ({
-  data,
+  results,
+  searchSummary,
+  distanceLabel,
   isLoading,
   isError,
   error,
@@ -33,8 +40,6 @@ export const RestaurantList = ({
   if (isError && error != null)
     return <ErrorDisplay error={error} onRetry={onRetry} />;
 
-  // Results arrive pre-sorted by distance from query `select`
-  const results = data?.results ?? [];
   const hasResults = results.length > 0;
 
   if (!hasResults && hasSearched) return <EmptyState hasSearched />;
@@ -48,13 +53,9 @@ export const RestaurantList = ({
         <h2 className="text-2xl font-bold tracking-tight text-forest">
           Top Recommendations
         </h2>
-        {data?.searchParams != null && (
+        {searchSummary && (
           <span className="text-sm font-medium text-muted-foreground">
-            {results.length} result{results.length !== 1 ? 's' : ''} for &quot;
-            {data.searchParams.query}&quot;{' '}
-            {data.searchParams.near
-              ? `near ${data.searchParams.near}`
-              : 'nearby'}
+            {searchSummary}
           </span>
         )}
       </div>
@@ -66,7 +67,7 @@ export const RestaurantList = ({
             key={restaurant.id}
             restaurant={restaurant}
             alternate={index % 2 !== 0}
-            distanceLabel={data?.meta?.distanceLabel}
+            distanceLabel={distanceLabel}
           />
         ))}
       </div>
