@@ -68,7 +68,7 @@ const resolveIpLocation = (ip?: string): string | undefined => {
   }
 
   const geo = geoip.lookup(cleanIp);
-  if (geo?.ll) {
+  if (geo?.ll && geo.city) {
     const [lat, lng] = geo.ll;
     logger.info(
       { ip: cleanIp, city: geo.city, ll: `${lat},${lng}` },

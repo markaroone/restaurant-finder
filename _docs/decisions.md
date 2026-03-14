@@ -449,4 +449,43 @@ Include the raw Foursquare error body in `meta.foursquareBody` **only when `NODE
 
 ---
 
+## ADR-012: Foursquare Relevance Sort + Frontend Distance Default
+
+**Status:** Accepted
+**Date:** 2026-03-14
+
+### Context
+
+Foursquare's Place Search API supports two sort modes: `RELEVANCE` (popularity/quality weighted) and `DISTANCE` (proximity only). The frontend currently re-sorts all results by distance via TanStack Query's `select` callback, which overwrites whatever ordering Foursquare returned.
+
+This creates a conflict: if we ask Foursquare for relevance-sorted results then immediately discard that ordering on the client, the quality signal is lost. But if we use distance sort at the API level, we lose popularity weighting and might surface obscure places over well-known ones.
+
+### Decision
+
+1. **Keep `sort: 'RELEVANCE'` on the Foursquare API call** — every search already has a location scope (`near` or `ll`), so Foursquare returns popular/quality-weighted results within that area.
+2. **Default the frontend sort to distance** (current behavior via `select` callback) — gives users a "nearest first" view, which is the most practical default.
+3. **Backlog: Add a dynamic sorting UI toggle** — let users switch between Distance, Relevance (original Foursquare order), and Name (alphabetical) without refetching, using TanStack Query's `select`.
+
+### Rationale
+
+- Foursquare's relevance sort is the better data source — it considers popularity, reviews, and match quality, not just coordinates.
+- Requesting `sort: 'DISTANCE'` from Foursquare would be redundant since the frontend already sorts by distance. Worse, it would lose the quality signal entirely — there'd be no way to recover it without re-fetching.
+- By keeping relevance data in the cache and sorting on the client, we preserve both signals and can offer user choice with zero network cost.
+
+### Alternatives Considered
+
+| Alternative                  | Why Rejected                                                    |
+| ---------------------------- | --------------------------------------------------------------- |
+| Foursquare `sort: DISTANCE`  | Redundant with frontend sort; permanently loses quality signal  |
+| No frontend sort (trust FSQ) | Distances appear random to user; poor UX for "find nearest" use |
+| Hybrid bucket sort           | Complex to implement; quality signal is subjective per user     |
+
+### Consequences
+
+- The cached response always contains Foursquare's relevance ordering — switching sort modes on the frontend is instant and free.
+- The default "nearest first" view may push a popular place down the list if it's farther away. This is an acceptable tradeoff for a location-first app.
+- Dynamic sorting UI (future backlog item) will reuse the same `select` pattern with zero refetch.
+
+---
+
 _More ADRs will be added during development as decisions emerge._
