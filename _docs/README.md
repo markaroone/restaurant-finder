@@ -179,16 +179,20 @@ flowchart TD
 
 **Parameter mapping:**
 
-| SearchParams field | Foursquare param             |
-| ------------------ | ---------------------------- |
-| `query`            | `query`                      |
-| `near`             | `near`                       |
-| `open_now`         | `open_now`                   |
-| `limit`            | `limit`                      |
-| _(always set)_     | `sort=RELEVANCE`             |
+| SearchParams field | Foursquare param |
+| ------------------ | ---------------- |
+| `query`            | `query`          |
+| `near`             | `near`           |
+| `open_now`         | `open_now`       |
+| `limit`            | `limit`          |
+| _(always set)_     | `sort=RELEVANCE` |
+
+> [!TIP]
+> **Client-Side Sorting:** While the backend always requests `sort=RELEVANCE` to get the most semantic matches, the frontend implements dynamic client-side sorting, allowing users to re-order the results by **Distance** without making additional API calls or breaking React Query's structural caching.
 
 > [!IMPORTANT]
 > **Foursquare API (2025-06-17 version):**
+>
 > - Base URL: `https://places-api.foursquare.com/places/search`
 > - Auth: `Authorization: Bearer <KEY>` (Bearer prefix required)
 > - Required header: `X-Places-Api-Version: 2025-06-17`
@@ -256,7 +260,7 @@ export class UpstreamError extends AppError {
 
 ### Server
 
-```
+```text
 server/
 ├── src/
 │   ├── app.ts                              # Express app + middleware
@@ -299,7 +303,7 @@ server/
 
 ### Client
 
-```
+```text
 client/
 ├── src/
 │   ├── main.tsx
