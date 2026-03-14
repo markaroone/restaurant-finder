@@ -22,6 +22,7 @@ export const HTTP_STATUS = {
   TOO_MANY_REQUESTS: 429,
   INTERNAL_SERVER_ERROR: 500,
   BAD_GATEWAY: 502,
+  GATEWAY_TIMEOUT: 504,
 } as const;
 
 export const ONE_MINUTE = 60 * 1000;

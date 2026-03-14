@@ -6,6 +6,7 @@ import { compressionMiddleware } from './compression';
 import { corsMiddleware } from './cors';
 import { rateLimiterMiddleware } from './rate-limiter';
 import { requestLoggerMiddleware } from './request-logger';
+import { requestTimeoutMiddleware } from './request-timeout';
 
 /**
  * Registers all non-route specific global middlewares.
@@ -14,6 +15,7 @@ export const registerGlobalMiddleware = (app: Express): void => {
   app.use(helmet());
   app.use(corsMiddleware);
   app.use(compressionMiddleware);
+  app.use(requestTimeoutMiddleware);
   app.use(jsonBodyParser);
   app.use(urlEncodedBodyParser);
   app.use(requestLoggerMiddleware);
