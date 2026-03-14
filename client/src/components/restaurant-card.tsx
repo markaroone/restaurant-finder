@@ -33,10 +33,16 @@ export const RestaurantCard = ({
       ? restaurant.categories[0].icon
       : null;
 
+  /** Build a Google Maps link from lat/lng. */
+  const googleMapsUrl =
+    restaurant.location !== null
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.name)}&query_place_id=&center=${restaurant.location.lat},${restaurant.location.lng}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.name + ' ' + restaurant.address)}`;
+
   return (
     <div
       className={cn(
-        'rounded-xl border p-6 transition-shadow hover:shadow-md md:p-8',
+        'rounded-xl border p-6 transition-shadow hover:shadow-md md:p-',
         alternate
           ? 'border-secondary/50 bg-secondary'
           : 'border-border bg-card shadow-sm',
@@ -94,18 +100,14 @@ export const RestaurantCard = ({
         </div>
 
         {/* Right: CTA */}
-        {restaurant.link != null && (
+        {googleMapsUrl !== null && (
           <div className="flex min-w-40 flex-col gap-3">
             <Button
               asChild
               className="w-full bg-forest font-bold text-secondary hover:bg-forest/90"
             >
-              <a
-                href={restaurant.link}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                View on Foursquare
+              <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">
+                View on Maps
                 <ExternalLink className="ml-2 h-4 w-4" />
               </a>
             </Button>
