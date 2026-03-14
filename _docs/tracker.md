@@ -1,17 +1,16 @@
 # Tracker: Restaurant Finder
 
 **Status:** IN PROGRESS
-**Current Phase:** Phase 3.5: Hardening
-**Next Immediate Step:** Commit Phase 3.5 changes, then proceed to Phase 4 (Testing)
-**Last Updated:** 2026-03-13
+**Current Phase:** Phase 5: Deployment & Documentation
+**Next Immediate Step:** Merge `fix/resiliency-timeouts` branch, then start Phase 5 (deploy + README)
+**Last Updated:** 2026-03-14
 
 ## The "Next Immediate Step"
 
 > **AI Instruction:** Read this section to know what to do next.
 
-- [x] Commit `fix/phase3-hardening` branch
-- [x] Merge to `main`
-- [ ] Begin Phase 4: Backend Tests
+- [x] Merge `fix/resiliency-timeouts` branch to `main`
+- [ ] Begin Phase 5: Deployment & Documentation
 
 ## Development Checklist
 
@@ -90,18 +89,55 @@
   3. IP geolocation via `geoip-lite` (local MaxMind DB, zero API calls)
   4. 400 error with `MISSING_LOCATION` reason if all fail
 - [x] `geoip-lite` installed — resolves IP to city-level lat/lng, handles IPv6-mapped prefixes, skips private IPs
-- [ ] Commit and merge to `main`
+- [x] Extracted `buildSearchSummary` to `server/src/modules/execute/execute.utils.ts`
+- [x] Committed and merged to `main`
 
 ---
 
 ### Phase 4: Testing
 
-- [ ] Backend tests:
-  - [ ] `execute.schema.test.ts` — code validation, message validation, searchParams validation
-  - [ ] `execute.service.test.ts` — mocked LLM/Foursquare, transform logic, error handling
-  - [ ] Integration test with Supertest — 401/400/200 cases
-- [ ] Run `bun test` — all tests passing
-- [ ] Run `bun run check` — no lint/type errors
+- [x] Backend tests:
+  - [x] `execute.schema.test.ts` — code validation, message validation, searchParams validation (20 tests)
+  - [x] `execute.service.test.ts` — mocked LLM/Foursquare, transform logic, error handling (9 tests)
+  - [x] `execute.integration.test.ts` — 401/422/200/400 cases with Supertest (9 tests)
+- [x] Run `bun test` — 38 tests passing, 72 assertions
+- [x] Run `bun run check` — no lint/type errors
+
+---
+
+### Phase 4.5: Security Hardening
+
+Conducted adversarial security audit. Implemented 4 of 6 identified vulnerabilities (V3/V4 deferred as out-of-scope for coding test).
+
+- [x] V1: Access code moved to `API_ACCESS_CODE` env variable (was hardcoded in source)
+- [x] V2: Per-route rate limiter on `/api/execute` (10 req/min per IP) — extracted to `execute.middleware.ts`
+  - ADR-010: Per-Route Rate Limiting
+- [x] V5: Default `NODE_ENV` to `production` (prevents accidental stack trace leaks)
+- [x] V6: Conditional Foursquare error meta — raw error body only in development
+  - ADR-011: Conditional Upstream Error Meta
+
+---
+
+### Phase 4.6: Search Relevance Tuning
+
+Conducted search relevance engineering audit focused on prompt loopholes, parameter mapping, location edge cases, and ranking conflicts.
+
+- [x] R1: ADR-012 — Foursquare relevance sort + frontend distance default (design decision)
+- [x] R2: IP geolocation city-level precision guard (prevents country-center fallback)
+- [x] R3: Fixed schema limit description mismatch (10 → 20 to match system instruction)
+- [x] R4: Added negation handling to LLM prompt (price + query negations)
+- [x] R5: Added non-Latin query translation rule to LLM prompt
+
+---
+
+### Phase 4.7: Resiliency Hardening
+
+Conducted network chaos monkey audit focused on timeout gaps, cascading failures, and partial failure modes.
+
+- [x] F1: Gemini AbortController timeout (15s) — prevents hanging LLM calls
+- [x] F2: Express request timeout middleware (20s) — responds 504 before client's 30s timeout
+  - New: `GatewayTimeoutError` class (504), `GATEWAY_TIMEOUT` HTTP status constant
+  - ADR-013: Layered Timeout Budget (Client 30s → Express 20s → Gemini 15s → Foursquare 10s)
 
 ---
 
@@ -123,3 +159,7 @@
 | 2026-03-13 | Phase 2 Backend Core merged to `main`.                                                                        |
 | 2026-03-13 | Phase 3 Frontend Core merged to `main`.                                                                       |
 | 2026-03-13 | Phase 3.5 Hardening: geolocation fallback, geoip-lite, three-tier error display, cursor:pointer, ENV.API_CODE |
+| 2026-03-14 | Phase 4 Testing: 38 backend tests (schema, service, integration), 72 assertions.                              |
+| 2026-03-14 | Phase 4.5 Security: access code env var, per-route rate limiting, conditional error meta. ADR-010, ADR-011.   |
+| 2026-03-14 | Phase 4.6 Relevance: IP geo guard, prompt fixes (limit, negation, non-Latin). ADR-012.                        |
+| 2026-03-14 | Phase 4.7 Resiliency: Gemini 15s abort, Express 20s timeout, GatewayTimeoutError. ADR-013.                    |

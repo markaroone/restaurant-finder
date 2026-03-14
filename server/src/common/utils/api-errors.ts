@@ -72,3 +72,21 @@ export class UpstreamError extends AppError {
     super(message, HTTP_STATUS.BAD_GATEWAY, 'UPSTREAM_ERROR', undefined, meta);
   }
 }
+
+/**
+ * Thrown when the server cannot produce a response in time (504).
+ */
+export class GatewayTimeoutError extends AppError {
+  constructor(
+    message: string = 'The request took too long to process. Please try again.',
+    meta?: Record<string, unknown>,
+  ) {
+    super(
+      message,
+      HTTP_STATUS.GATEWAY_TIMEOUT,
+      'GATEWAY_TIMEOUT',
+      undefined,
+      meta,
+    );
+  }
+}

@@ -10,6 +10,7 @@ const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 
 const MODEL = 'gemini-2.5-flash';
 const MAX_ATTEMPTS = 2;
+const LLM_TIMEOUT_MS = 15_000; // 15s — generous for Flash (typical: 200-800ms)
 
 /**
  * JSON schema for Gemini structured output mode.
@@ -116,16 +117,26 @@ export const parseMessage = async (message: string): Promise<SearchParams> => {
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      const response = await ai.models.generateContent({
-        model: MODEL,
-        contents: message,
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          responseMimeType: 'application/json',
-          responseJsonSchema,
-          temperature: 0.1,
-        },
-      });
+      // Abort if Gemini doesn't respond within 15s (typical: 200-800ms)
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
+
+      let response;
+      try {
+        response = await ai.models.generateContent({
+          model: MODEL,
+          contents: message,
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION,
+            responseMimeType: 'application/json',
+            responseJsonSchema,
+            temperature: 0.1,
+            abortSignal: controller.signal,
+          },
+        });
+      } finally {
+        clearTimeout(timer);
+      }
 
       if (!response.text) {
         throw new UpstreamError('Gemini returned an empty response', {

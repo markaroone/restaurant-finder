@@ -488,4 +488,48 @@ This creates a conflict: if we ask Foursquare for relevance-sorted results then 
 
 ---
 
+## ADR-013: Layered Timeout Budget
+
+**Status:** Accepted
+**Date:** 2026-03-14
+
+### Context
+
+The backend orchestrates two external API calls (Gemini + Foursquare) per search request. Without server-side timeouts, a hanging upstream service can block the Express event loop for minutes. The frontend has a 30s ky timeout, but when it fires, the backend keeps running — wasting resources on a response nobody will receive.
+
+### Decision
+
+Implement a **layered timeout budget** where each layer is shorter than its parent:
+
+| Layer                    | Timeout | Responsibility                                  |
+| ------------------------ | ------- | ----------------------------------------------- |
+| Client (ky)              | 30s     | Outer boundary — user sees error                |
+| Express middleware       | 20s     | Server responds with 504 before client gives up |
+| Gemini (AbortController) | 15s     | Abort LLM call if hanging                       |
+| Foursquare (ky default)  | 10s     | HTTP client timeout                             |
+| Browser geolocation      | 10s     | Non-blocking, separate from request chain       |
+
+### Rationale
+
+- Each timeout is shorter than its parent, so the **inner layer always fires first**. This prevents orphaned work.
+- 15s for Gemini Flash is generous (typical: 200-800ms). If it hasn't responded in 15s, it's not going to.
+- Express 20s > Gemini 15s means the server has 5s of headroom to catch the Gemini timeout, format the error, and respond cleanly rather than hitting a raw 504.
+- Client 30s > Express 20s means the server always responds first — the client never has to guess whether the server crashed or is just slow.
+
+### Alternatives Considered
+
+| Alternative                        | Why Rejected                                                     |
+| ---------------------------------- | ---------------------------------------------------------------- |
+| Single global timeout              | Can't differentiate between Gemini and Foursquare failures       |
+| No server timeout (rely on client) | Server wastes resources on responses nobody will receive         |
+| Shorter timeouts (5s Gemini)       | Flash can occasionally take 2-3s on long queries; too aggressive |
+
+### Consequences
+
+- Changing any single timeout requires understanding the full cascade. Document the budget in code comments.
+- The `AbortSignal` cancels the client HTTP request but Gemini may still process the prompt server-side (and charge for it).
+- Future endpoints that don't call external APIs inherit the 20s Express timeout unnecessarily — acceptable overhead.
+
+---
+
 _More ADRs will be added during development as decisions emerge._
