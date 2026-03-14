@@ -1,11 +1,10 @@
 import { GoogleGenAI, Type } from '@google/genai';
 
+import { BadRequestError, UpstreamError } from '@/common/utils/api-errors';
+import { logger } from '@/common/utils/logger';
 import { env } from '@/config/env';
 import { searchParamsSchema } from '@/modules/execute/execute.schema';
 import { SearchParams } from '@/modules/execute/execute.types';
-import { BadRequestError } from '@/common/utils/api-errors';
-import { UpstreamError } from '@/common/utils/api-errors';
-import { logger } from '@/common/utils/logger';
 
 const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 
@@ -42,7 +41,7 @@ const responseJsonSchema = {
     limit: {
       type: Type.NUMBER,
       description:
-        'How many results the user wants. Default to 10 if not specified. Maximum is 50.',
+        'How many results the user wants. Default to 20 if not specified. Maximum is 50.',
     },
     is_food_related: {
       type: Type.BOOLEAN,
@@ -75,7 +74,10 @@ Food-related classification:
 Extraction rules:
 - Extract the food type or cuisine into "query"
 - Extract the location into "near"
+- Always extract the query in English, even if the user's message is in another language (e.g., "拉面" → "ramen", "寿司" → "sushi", "boulangerie" → "bakery")
 - For price: 1=cheap/budget, 2=moderate, 3=expensive/upscale, 4=very expensive/fine dining. Use 0 if not specified.
+- For price negations, infer the intended range: "not expensive" → price: 1 or 2, "not cheap" → price: 3 or 4
+- For query negations like "anything but sushi", extract a general term like "restaurant"
 - For open_now: only set to true if the user explicitly says "open now", "currently open", or similar phrases
 - For limit: default to 20 unless the user asks for a specific number of results
 - If the user's message is vague about cuisine, use a general term like "restaurant"
