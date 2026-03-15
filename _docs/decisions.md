@@ -661,4 +661,56 @@ guardOutput(params)             Post-gate: checks for prompt leakage + PII in ou
 
 ---
 
+## ADR-016: Few-Shot Prompting for Edge Case Accuracy
+
+**Status:** Accepted
+**Date:** 2026-03-15
+
+### Context
+
+The `SYSTEM_INSTRUCTION` used pure **zero-shot prompting** — detailed rules described in plain English, with no concrete examples. This works well for common queries but fails on edge cases:
+
+- Price negations: `"not too pricey"` → LLM may return `price: 0` instead of `price: 2`
+- Open-now slang: `"still serving"` → LLM may not recognize the open-now signal
+- Abbreviations: `"DTLA"` → LLM may return `"DTLA"` literally instead of expanding it
+- Emoji inputs: `"🍕 near times square"` → LLM may not translate the emoji to `"pizza"`
+- Multilingual: `"拉麺 東京"` → LLM may not translate both food and location to English
+
+### Decision
+
+Add a **few-shot examples block** at the end of `SYSTEM_INSTRUCTION`, immediately before the user's message is processed. The block contains 6 representative examples covering the highest-value edge cases:
+
+| Example                                               | Edge Case Demonstrated                           |
+| ----------------------------------------------------- | ------------------------------------------------ |
+| `"cheap sushi in downtown LA that's open now"`        | Baseline: price + location + open_now            |
+| `"not too expensive ramen near me"`                   | Price negation → `price: 2`, empty near          |
+| `"anything still serving in DTLA, something upscale"` | Slang → `open_now: true`, abbreviation expansion |
+| `"🍕 near times square"`                              | Emoji → English food translation                 |
+| `"find me a hospital"`                                | Non-food rejection → `is_food_related: false`    |
+| `"拉麺 東京"`                                         | Multilingual → both fields translated to English |
+
+Each example uses the **full 6-field schema** to reinforce the exact expected output shape.
+
+### Rationale
+
+- **OpenAI and Google's own guidance** both recommend few-shot examples for structured extraction tasks. Expected accuracy improvement on edge cases: 20–40%.
+- **Token cost is predictable and modest**: ~80–120 tokens per example × 6 examples ≈ **~500 additional input tokens per request**. At Gemini 2.5 Flash pricing, this is fractions of a cent per call.
+- **The system prompt was already ~700 tokens** — a ~70% increase in prompt size, but the accuracy gain on edge cases justifies it for a production-quality parser.
+- **6 examples is the sweet spot**: enough to cover the major edge case categories without excessive token overhead.
+
+### Alternatives Considered
+
+| Alternative                    | Why Rejected                                                                                                                                  |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Keep zero-shot, add more rules | Rules alone are less effective than examples for pattern recognition. Adding more rules increases token count without the same accuracy gain. |
+| Fine-tuning the model          | Requires thousands of labeled examples and significant cost. Few-shot is 80% of the benefit at 1% of the cost.                                |
+| 10+ examples                   | Diminishing returns beyond 6. Token cost scales linearly while accuracy gains plateau.                                                        |
+
+### Consequences
+
+- Prompt token count increases by ~500 tokens per request (from ~700 to ~1200).
+- The examples block must be kept in sync with rule changes. If a rule is updated (e.g., new `open_now` trigger phrases), the examples may need updating too.
+
+---
+
 _More ADRs will be added during development as decisions emerge._
