@@ -1,6 +1,7 @@
 import { BadRequestError } from '@/common/utils/api-errors';
 import { logger } from '@/common/utils/logger';
 import { SearchParams } from '@/modules/execute/execute.types';
+import { remove as removeConfusables } from 'confusables';
 
 // ─── Pre-screen: Prompt Injection Detection ──────────────────────────────────
 
@@ -23,11 +24,18 @@ const INJECTION_PATTERNS = [
  * Pre-screens user input for known prompt injection patterns.
  * Runs before any sanitization or LLM call to short-circuit obvious attacks.
  *
+ * Uses the `confusables` package to normalize Unicode homoglyphs before matching,
+ * preventing bypass via visually identical characters from non-Latin scripts
+ * (e.g., Cyrillic "і" U+0456 looks identical to ASCII "i").
+ *
  * @throws BadRequestError if a known injection pattern is detected
  */
 export const detectInjection = (message: string): void => {
+  // Normalize Unicode confusables → ASCII before pattern matching
+  const normalized = removeConfusables(message);
+
   const isInjection = INJECTION_PATTERNS.some((pattern) =>
-    pattern.test(message),
+    pattern.test(normalized),
   );
 
   if (isInjection) {

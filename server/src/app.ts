@@ -6,7 +6,7 @@ import express from 'express';
 
 export const app = express();
 
-// Global middleware
+// Global middleware (includes trust proxy configuration)
 registerGlobalMiddleware(app);
 
 // Health check

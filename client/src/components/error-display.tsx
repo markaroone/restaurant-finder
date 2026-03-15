@@ -54,8 +54,8 @@ export const ErrorDisplay = ({
         />
         <p className="max-w-sm text-sm text-muted-foreground">
           We couldn&apos;t pinpoint{' '}
-          <strong className="text-foreground">&quot;{near}&quot;</strong>.{' '}
-          Try adding a city or country to your search.
+          <strong className="text-foreground">&quot;{near}&quot;</strong>. Try
+          adding a city or country to your search.
         </p>
         {fullSuggestion && fullSuggestion !== near && (
           <div className="mt-4 flex flex-col items-center gap-2">

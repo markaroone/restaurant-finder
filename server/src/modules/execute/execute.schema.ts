@@ -18,8 +18,9 @@ export const executeQuerySchema = z.object({
       .max(500, 'Message must be 500 characters or fewer'),
     ll: z
       .string()
+      .max(40, 'll value too long')
       .regex(
-        /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/,
+        /^-?\d{1,3}(\.\d{1,10})?,-?\d{1,3}(\.\d{1,10})?$/,
         'll must be in the format "lat,lng" (e.g., "14.55,121.02")',
       )
       .optional(),

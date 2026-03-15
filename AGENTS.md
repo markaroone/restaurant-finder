@@ -37,7 +37,25 @@
 - **Never commit directly to `main`.** Always switch to a new branch with a suitable name based on the feature being worked on (e.g., `feat/search-parser`, `style/design-audit-fixes`).
 - **Conventional Commits:** `<type>(<scope>): <subject>` (e.g., `feat(execute): add LLM parsing service`)
 - **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-- **Body:** Include for non-trivial changes. Explain what changed and why.
+- **Subject line:** imperative mood, lowercase, no period, ≤72 characters.
+- **Body format** (for non-trivial changes):
+  1. Blank line after subject
+  2. One short paragraph explaining **what** changed and **why**
+  3. Bullet list (`-`) of specific changes, grouped by scope
+
+  Example:
+
+  ```text
+  fix(security): harden trust proxy, CORS, regex, and injection detection
+
+  Addresses four vulnerabilities identified in SAST review.
+
+  - Configure trust proxy for single-hop PaaS deployments (Render/Railway)
+  - Block null-origin CORS requests in production
+  - Bound ll regex quantifiers and add .max(40) to prevent ReDoS
+  - Normalize Unicode confusables before injection pattern matching
+  ```
+
 - **Branches:** Prefix with `feat/`, `fix/`, `docs/`, `style/`, `chore/` etc. Merge to `main` via `--no-ff`.
 
 ## SDD Documentation
