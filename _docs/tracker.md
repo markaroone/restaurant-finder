@@ -232,6 +232,21 @@ Upgraded the LLM system prompt from zero-shot to few-shot, improving edge case a
 
 ---
 
+### Phase 4.15: NER Heuristic Fallback & Service Refactoring
+
+Added graceful degradation when Gemini is unavailable and restructured services into feature folders.
+
+- [x] Install `compromise` NLP library for local heuristic parsing
+- [x] Add `parseMessageHeuristic()` — regex PRICE_MAP + compromise location extraction + tokenizer
+- [x] Wire try-LLM → catch-UpstreamError → fallback-to-heuristic in `execute.service.ts`
+- [x] Add `parsedBy: 'llm' | 'heuristic'` to `ExecuteResponse.meta` (server + client)
+- [x] Show ⚡ "Quick mode" badge in `SearchParamsPills` when heuristic ran
+- [x] Refactor flat `services/` into feature folders: `services/llm/` (5 files) and `services/foursquare/` (3 files)
+- [x] Update all imports and test mocks — 42/42 tests pass
+  - ADR-017: NER Heuristic Fallback Strategy
+
+---
+
 ### Phase 5: Deployment & Documentation
 
 - [ ] Deploy backend to Render/Railway (root: `/server`)
@@ -261,3 +276,4 @@ Upgraded the LLM system prompt from zero-shot to few-shot, improving edge case a
 | 2026-03-15 | Phase 4.12 Guardrails: injection detection, output filtering, token monitoring. Pipeline → five-layer defense. ADR-015. |
 | 2026-03-15 | Phase 4.13 UI Transparency: Search parameters pill badges and search bar clear button.                                  |
 | 2026-03-15 | Phase 4.14 Few-Shot Prompting: 6 examples in SYSTEM_INSTRUCTION for edge case accuracy. ADR-016.                        |
+| 2026-03-15 | Phase 4.15 NER Fallback: heuristic parser + service folder refactoring (`llm/`, `foursquare/`). ADR-017.                |

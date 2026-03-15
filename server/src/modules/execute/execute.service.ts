@@ -6,11 +6,12 @@ import {
   ExecuteResponse,
   TransformedRestaurant,
 } from '@/modules/execute/execute.types';
+import { FoursquarePlace, searchRestaurants } from '@/services/foursquare';
 import {
-  FoursquarePlace,
-  searchRestaurants,
-} from '@/services/foursquare.service';
-import { detectInjection, parseMessage } from '@/services/llm.service';
+  detectInjection,
+  parseMessage,
+  parseMessageHeuristic,
+} from '@/services/llm';
 
 /**
  * Transforms a raw Foursquare place into our clean client-facing shape.
@@ -133,9 +134,26 @@ export const executeSearch = async (
   ll?: string,
   clientIp?: string,
 ): Promise<ExecuteResponse> => {
-  // Step 1: Injection pre-screen + LLM parsing
+  // Step 1: Injection pre-screen + LLM parsing (with heuristic fallback)
   detectInjection(message);
-  const searchParams = await parseMessage(message);
+
+  let searchParams: Awaited<ReturnType<typeof parseMessage>>;
+  let parsedBy: 'llm' | 'heuristic' = 'llm';
+
+  try {
+    searchParams = await parseMessage(message);
+  } catch (error) {
+    // Only fall back on upstream errors (Gemini unavailable/timeout).
+    // BadRequestErrors (injection, bad input) are re-thrown immediately.
+    if (error instanceof BadRequestError) throw error;
+
+    logger.warn(
+      { error },
+      '⚡ Gemini unavailable — falling back to heuristic parser',
+    );
+    searchParams = await parseMessageHeuristic(message);
+    parsedBy = 'heuristic';
+  }
 
   // Sanitize placeholder locations the LLM sometimes produces
   // (e.g., "near me" → near: "current location"). Foursquare can't resolve these.
@@ -194,6 +212,7 @@ export const executeSearch = async (
       resultCount: results.length,
       searchedAt: new Date().toISOString(),
       distanceLabel,
+      parsedBy,
     },
   };
 };

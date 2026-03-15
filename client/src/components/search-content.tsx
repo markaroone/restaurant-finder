@@ -47,10 +47,13 @@ export const SearchContent = (): ReactElement => {
     <div className="mx-auto flex max-w-240 flex-col px-6 py-12 lg:py-20">
       <SearchBar isLoading={isLoading} onSearch={triggerSearch} />
 
-      {/* AI Transparency — show what the LLM extracted */}
+      {/* AI Transparency — show what the LLM (or heuristic) extracted */}
       {data?.searchParams && !isLoading && (
         <div className="mt-6">
-          <SearchParamsPills searchParams={data.searchParams} />
+          <SearchParamsPills
+            searchParams={data.searchParams}
+            parsedBy={data.meta.parsedBy}
+          />
         </div>
       )}
 

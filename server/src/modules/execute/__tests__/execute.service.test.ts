@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
 import type { SearchParams } from '@/modules/execute/execute.types';
-import type { FoursquarePlace } from '@/services/foursquare.service';
+import type { FoursquarePlace } from '@/services/foursquare';
 
 // ─── Mock modules BEFORE importing the service ──────────────────────
 
@@ -9,12 +9,12 @@ const mockParseMessage = mock<(message: string) => Promise<SearchParams>>();
 const mockSearchRestaurants =
   mock<(params: SearchParams, ll?: string) => Promise<FoursquarePlace[]>>();
 
-mock.module('@/services/llm.service', () => ({
+mock.module('@/services/llm', () => ({
   detectInjection: () => {},
   parseMessage: mockParseMessage,
 }));
 
-mock.module('@/services/foursquare.service', () => ({
+mock.module('@/services/foursquare', () => ({
   searchRestaurants: mockSearchRestaurants,
 }));
 

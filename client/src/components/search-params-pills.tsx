@@ -1,4 +1,4 @@
-import { Clock, MapPin, Utensils, Wallet } from 'lucide-react';
+import { Clock, MapPin, Utensils, Wallet, Zap } from 'lucide-react';
 import type { ReactElement } from 'react';
 
 import type { SearchParams } from '@/types/restaurant';
@@ -12,25 +12,44 @@ const PRICE_LABELS: Record<number, string> = {
 
 type SearchParamsPillsProps = {
   searchParams: SearchParams;
+  parsedBy?: 'llm' | 'heuristic';
 };
 
 /**
- * Displays pill badges showing what the AI extracted from the user's query.
- * Builds trust by making the LLM interpretation transparent and verifiable.
+ * Displays pill badges showing what the AI (or heuristic fallback) extracted
+ * from the user's query. Builds trust by making the interpretation transparent.
+ * When the heuristic fallback ran (Gemini unavailable), a ⚡ badge is shown.
  */
 export const SearchParamsPills = ({
   searchParams,
+  parsedBy = 'llm',
 }: SearchParamsPillsProps): ReactElement => {
   const { query, near, price, open_now } = searchParams;
+  const isHeuristic = parsedBy === 'heuristic';
 
   return (
     <div
       className="flex flex-wrap items-center gap-2 text-sm"
-      aria-label="AI interpretation of your search"
+      aria-label={
+        isHeuristic
+          ? 'Quick interpretation of your search (AI unavailable)'
+          : 'AI interpretation of your search'
+      }
     >
       <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        AI understood
+        {isHeuristic ? 'Understood' : 'AI understood'}
       </span>
+
+      {/* Heuristic mode indicator */}
+      {isHeuristic && (
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 font-medium text-amber-600 dark:text-amber-400"
+          title="AI service is currently unavailable — using quick local parsing instead"
+        >
+          <Zap className="size-3.5" aria-hidden="true" />
+          Quick mode
+        </span>
+      )}
 
       {/* Cuisine / query */}
       <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 font-medium text-forest">
