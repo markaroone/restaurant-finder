@@ -713,4 +713,59 @@ Each example uses the **full 6-field schema** to reinforce the exact expected ou
 
 ---
 
+## ADR-017: NER Heuristic Fallback for Gemini Unavailability
+
+**Status:** Accepted
+**Date:** 2026-03-15
+
+### Context
+
+The LLM (`parseMessage`) can fail when Gemini is down, times out (>15s), or returns rate-limit errors. Previously, this surfaced as a `BadRequestError` to the user — a dead end. The research audit (Concept 15) documented a full NER-based non-LLM parser using `compromise` + regex that handles the 80% common case.
+
+### Decision
+
+Implement a **try-LLM → catch → fallback-to-heuristic** pattern in `execute.service.ts`:
+
+```typescript
+try {
+  searchParams = await parseMessage(message); // LLM
+} catch (error) {
+  if (error instanceof BadRequestError) throw error; // user's fault — don't fallback
+  searchParams = await parseMessageHeuristic(message); // Gemini's fault — degrade gracefully
+  parsedBy = 'heuristic';
+}
+```
+
+The heuristic parser (`parseMessageHeuristic`) uses:
+
+- **`compromise`** NLP library for location extraction (place tagging)
+- **Regex `PRICE_MAP`** for price signal detection (cheap → 1, upscale → 3, etc.)
+- **Tokenizer + stop word removal** for cuisine/query extraction
+- **`OPEN_NOW_REGEX`** for availability phrases
+
+A `parsedBy: 'llm' | 'heuristic'` field is included in `ExecuteResponse.meta` so the frontend can display a ⚡ "Quick mode" badge when the fallback ran.
+
+### Rationale
+
+- **Heuristic over a second LLM provider** — Zero cost, zero external dependencies when Gemini is down. No additional API key management. A more impressive engineering story than "I added OpenAI as backup."
+- **`UpstreamError` vs `BadRequestError` branching** — `BadRequestError` (injection, non-food) is re-thrown because the heuristic would process the same bad input. `UpstreamError` (Gemini down) triggers the fallback because the input is fine, only the parser failed.
+- **`parsedBy` transparency** — Feeds directly into the existing AI transparency pills (Concept 12), keeping the user informed about parsing quality.
+
+### Alternatives Considered
+
+| Alternative                        | Why Rejected                                                                             |
+| ---------------------------------- | ---------------------------------------------------------------------------------------- |
+| Second LLM provider (OpenAI)       | Requires separate API key, billing, SDK. Adds cost and secret management for a demo app. |
+| Different Gemini model as fallback | Same API — if Gemini is down, all models are likely affected.                            |
+| Return an error and let user retry | Poor UX. The heuristic handles common queries well enough to return useful results.      |
+| Always use heuristic (skip LLM)    | Loses the 20% edge case accuracy (emoji, multilingual, negations) that the LLM handles.  |
+
+### Consequences
+
+- `compromise` is added as a production dependency (~350KB). It has zero dependencies itself.
+- The heuristic cannot handle emoji, non-Latin scripts, negations, or food-relatedness checks. These edge cases will return degraded (but still functional) results.
+- The `services/` directory was also restructured into feature folders (`llm/`, `foursquare/`) during this phase to accommodate the growing number of LLM-related files.
+
+---
+
 _More ADRs will be added during development as decisions emerge._

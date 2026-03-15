@@ -42,5 +42,7 @@ export type ExecuteResponse = {
     searchedAt: string;
     /** Contextual label for distance, e.g. "away from La Union" or "away from you". */
     distanceLabel: string;
+    /** Which parser produced the searchParams. 'llm' = Gemini, 'heuristic' = local NER fallback. */
+    parsedBy: 'llm' | 'heuristic';
   };
 };

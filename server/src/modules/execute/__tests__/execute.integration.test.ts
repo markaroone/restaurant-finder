@@ -2,12 +2,11 @@ import { describe, expect, mock, test, beforeEach } from 'bun:test';
 import request from 'supertest';
 
 import type { SearchParams } from '@/modules/execute/execute.types';
-import type { FoursquarePlace } from '@/services/foursquare.service';
+import type { FoursquarePlace } from '@/services/foursquare';
 import { BadRequestError } from '@/common/utils/api-errors';
 
 // Import the real detectInjection so it runs even with parseMessage mocked
-const { detectInjection: realDetectInjection } =
-  await import('@/services/llm.service');
+const { detectInjection: realDetectInjection } = await import('@/services/llm');
 
 // ─── Mock LLM and Foursquare ────────────────────────────────────────
 
@@ -15,12 +14,12 @@ const mockParseMessage = mock<(message: string) => Promise<SearchParams>>();
 const mockSearchRestaurants =
   mock<(params: SearchParams, ll?: string) => Promise<FoursquarePlace[]>>();
 
-mock.module('@/services/llm.service', () => ({
+mock.module('@/services/llm', () => ({
   detectInjection: realDetectInjection,
   parseMessage: mockParseMessage,
 }));
 
-mock.module('@/services/foursquare.service', () => ({
+mock.module('@/services/foursquare', () => ({
   searchRestaurants: mockSearchRestaurants,
 }));
 
