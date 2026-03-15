@@ -26,6 +26,12 @@
 - **Namespace imports** for service modules: `import * as LLMService from '@/services/llm.service'`
 - **Constants.** No magic strings/numbers. Use `HTTP_STATUS.BAD_REQUEST` not `400`.
 
+## Planning & Artifacts
+
+- **Always generate an artifact before coding.** For any non-trivial change (a bug fix, new feature, or refactor), create an `implementation_plan.md` artifact first. The plan must cover: root cause / context, proposed solution options, the recommended approach, and a verification plan.
+- **Wait for user approval** of the plan before writing any code.
+- **Only skip the plan** for obvious one-liners or purely mechanical changes (e.g., renaming a variable, fixing a typo).
+
 ## Git & Commits
 
 - **Never commit directly to `main`.** Always switch to a new branch with a suitable name based on the feature being worked on (e.g., `feat/search-parser`, `style/design-audit-fixes`).
