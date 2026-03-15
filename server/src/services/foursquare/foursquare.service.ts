@@ -11,19 +11,18 @@ import { SearchParams } from '@/modules/execute/execute.types';
 const API_VERSION = '2025-06-17';
 
 /**
- * NOTE: The 2025 Foursquare API uses hex-format category IDs
- * (e.g., "4bf58dd8d48988d1d2941735"), not the old numeric format ("13065").
- * Since the LLM query param (e.g., "sushi", "Italian") already constrains
- * results to food venues, we do not filter by category ID.
+ * Root "Food" category ID in the Foursquare Places API (2025-06-17) hex taxonomy.
+ * Covers all restaurant subcategories (Japanese, Italian, BBQ, Bakery, etc.).
+ * Passing this ensures searches never return grocery stores, hotels, or landmarks.
+ * Source: https://docs.foursquare.com/fsq-developers-places/reference/place-search
  */
+const FOOD_CATEGORY_ID = '4d4b7105d754a06374d81259';
 
 /**
  * Fields to request from Foursquare.
  * We only request what we need — reduces response size and improves performance.
  *
  * NOTE: Fields like `rating`, `price`, `hours`, `photos` are "Places Premium"
- * and require paid API credits. Per the challenge spec: "If a field requires
- * premium access, you may skip it." We request only free-tier fields.
  */
 const REQUESTED_FIELDS = [
   'fsq_place_id',
@@ -68,12 +67,13 @@ const buildSearchParams = (
     limit: String(params.limit),
     sort: 'RELEVANCE',
     fields: REQUESTED_FIELDS,
+    fsq_category_ids: FOOD_CATEGORY_ID,
   };
 
   // Priority: LLM-extracted "near" > browser geolocation "ll"
   if (params.near.length > 0) {
     searchParams.near = params.near;
-  } else if (ll != null) {
+  } else if (ll !== null && ll !== undefined) {
     searchParams.ll = ll;
   }
 

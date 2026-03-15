@@ -4,13 +4,13 @@
 
 ## Tech Stack
 
-| Tech           | Choice            | Purpose                        |
-| :------------- | :---------------- | :----------------------------- |
-| **Runtime**    | **Bun**           | Native TS, no build step.      |
-| **Framework**  | **Express 5**     | Middleware ecosystem.          |
-| **Validation** | **Zod**           | Runtime schema validation.     |
-| **LLM**        | **Google Gemini** | Structured output NLP parsing. |
-| **Places API** | **Foursquare v3** | Restaurant search data.        |
+| Tech           | Choice                      | Purpose                        |
+| :------------- | :-------------------------- | :----------------------------- |
+| **Runtime**    | **Bun**                     | Native TS, no build step.      |
+| **Framework**  | **Express 5**               | Middleware ecosystem.          |
+| **Validation** | **Zod**                     | Runtime schema validation.     |
+| **LLM**        | **Google Gemini**           | Structured output NLP parsing. |
+| **Places API** | **Foursquare (2025-06-17)** | Restaurant search data.        |
 
 > **No database.** No Prisma. No PostgreSQL. Stateless pass-through API.
 
