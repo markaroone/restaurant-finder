@@ -260,6 +260,17 @@ Upgraded the LLM retry logic from immediate retries to proper exponential backof
 
 ---
 
+### Phase 4.17: Mocking APIs & Test Coverage
+
+Expanded test suite to cover new resilience features.
+
+- [x] Add heuristic fallback unit tests (UpstreamError triggers `parseMessageHeuristic`)
+- [x] Add placeholder location sanitization unit tests
+- [x] Add Foursquare UpstreamError integration test
+- [x] 49/49 tests passing across 3 suites
+
+---
+
 ### Phase 5: Deployment & Documentation
 
 - [ ] Deploy backend to Render/Railway (root: `/server`)
@@ -291,3 +302,4 @@ Upgraded the LLM retry logic from immediate retries to proper exponential backof
 | 2026-03-15 | Phase 4.14 Few-Shot Prompting: 6 examples in SYSTEM_INSTRUCTION for edge case accuracy. ADR-016.                        |
 | 2026-03-15 | Phase 4.15 NER Fallback: heuristic parser + service folder refactoring (`llm/`, `foursquare/`). ADR-017.                |
 | 2026-03-15 | Phase 4.16 Exponential Backoff: full jitter, `isRetryableError`, timeout budget rebalanced 15s→8s/call. ADR-018.        |
+| 2026-03-15 | Phase 4.17 Test Coverage: expanded execute tests (49/49 passing).                                                       |

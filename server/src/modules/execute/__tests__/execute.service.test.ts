@@ -2,16 +2,20 @@ import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
 import type { SearchParams } from '@/modules/execute/execute.types';
 import type { FoursquarePlace } from '@/services/foursquare';
+import { UpstreamError } from '@/common/utils/api-errors';
 
 // ─── Mock modules BEFORE importing the service ──────────────────────
 
 const mockParseMessage = mock<(message: string) => Promise<SearchParams>>();
+const mockParseMessageHeuristic =
+  mock<(message: string) => Promise<SearchParams>>();
 const mockSearchRestaurants =
   mock<(params: SearchParams, ll?: string) => Promise<FoursquarePlace[]>>();
 
 mock.module('@/services/llm', () => ({
   detectInjection: () => {},
   parseMessage: mockParseMessage,
+  parseMessageHeuristic: mockParseMessageHeuristic,
 }));
 
 mock.module('@/services/foursquare', () => ({
@@ -63,6 +67,7 @@ const makeFoursquarePlace = (
 
 beforeEach(() => {
   mockParseMessage.mockReset();
+  mockParseMessageHeuristic.mockReset();
   mockSearchRestaurants.mockReset();
 });
 
@@ -207,5 +212,71 @@ describe('executeSearch — distanceLabel', () => {
     const result = await executeSearch('sushi', '14.55,121.02');
 
     expect(result.meta.distanceLabel).toBe('away from you');
+  });
+});
+
+describe('executeSearch — heuristic fallback', () => {
+  test('falls back to heuristic parser when LLM throws UpstreamError', async () => {
+    mockParseMessage.mockRejectedValue(new UpstreamError('Gemini unavailable'));
+    mockParseMessageHeuristic.mockResolvedValue(
+      makeLLMResult({ query: 'sushi', near: 'Manila' }),
+    );
+    mockSearchRestaurants.mockResolvedValue([makeFoursquarePlace()]);
+
+    const result = await executeSearch('sushi near Manila');
+
+    expect(mockParseMessageHeuristic).toHaveBeenCalledWith('sushi near Manila');
+    expect(result.meta.parsedBy).toBe('heuristic');
+    expect(result.results.length).toBe(1);
+  });
+
+  test('sets parsedBy to "llm" when LLM succeeds', async () => {
+    mockParseMessage.mockResolvedValue(makeLLMResult());
+    mockSearchRestaurants.mockResolvedValue([makeFoursquarePlace()]);
+
+    const result = await executeSearch('sushi in LA');
+
+    expect(result.meta.parsedBy).toBe('llm');
+  });
+});
+
+describe('executeSearch — placeholder location sanitization', () => {
+  test('strips "current location" and uses browser ll instead', async () => {
+    mockParseMessage.mockResolvedValue(
+      makeLLMResult({ near: 'current location' }),
+    );
+    mockSearchRestaurants.mockResolvedValue([makeFoursquarePlace()]);
+
+    await executeSearch('sushi near me', '14.55,121.02');
+
+    // near was sanitized → Foursquare should receive ll fallback
+    expect(mockSearchRestaurants).toHaveBeenCalledWith(
+      expect.objectContaining({ near: '' }),
+      '14.55,121.02',
+    );
+  });
+
+  test('strips "near me" and uses browser ll instead', async () => {
+    mockParseMessage.mockResolvedValue(makeLLMResult({ near: 'near me' }));
+    mockSearchRestaurants.mockResolvedValue([makeFoursquarePlace()]);
+
+    await executeSearch('pizza near me', '40.71,-74.00');
+
+    expect(mockSearchRestaurants).toHaveBeenCalledWith(
+      expect.objectContaining({ near: '' }),
+      '40.71,-74.00',
+    );
+  });
+
+  test('throws MISSING_LOCATION if placeholder stripped and no ll', async () => {
+    mockParseMessage.mockResolvedValue(makeLLMResult({ near: 'my location' }));
+
+    try {
+      await executeSearch('sushi', undefined, '127.0.0.1');
+      expect.unreachable('should have thrown');
+    } catch (error: unknown) {
+      const err = error as { meta?: { reason: string } };
+      expect(err.meta?.reason).toBe('MISSING_LOCATION');
+    }
   });
 });
