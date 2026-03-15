@@ -5,7 +5,7 @@ import {
   useState,
 } from 'react';
 
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,6 +53,17 @@ export const SearchBar = ({
     [search, onSearch],
   );
 
+  const handleResetSearchBar = useCallback(() => {
+    setValue('');
+  }, []);
+
+  const handleSetInputValue = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setValue(event.target.value);
+    },
+    [],
+  );
+
   return (
     <div className="text-center">
       <h1 className="text-4xl leading-tight font-extrabold tracking-tight text-forest lg:text-5xl">
@@ -70,15 +81,28 @@ export const SearchBar = ({
               aria-hidden="true"
             />
           </div>
+
           <Input
             aria-label="Search for restaurants"
             className="h-full flex-1 border-none bg-card text-lg font-medium shadow-none focus-visible:ring-0"
             placeholder="Try 'sushi in downtown LA'..."
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={handleSetInputValue}
             disabled={isLoading}
             maxLength={500}
           />
+
+          {value.length > 0 && !isLoading && (
+            <button
+              type="button"
+              onClick={handleResetSearchBar}
+              className="flex items-center justify-center bg-card px-2 text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+
           <div className="flex items-center bg-card pr-3">
             <Button
               type="submit"
@@ -96,7 +120,7 @@ export const SearchBar = ({
           <button
             key={chip.label}
             type="button"
-            onClick={() => handleChipClick(chip.query)}
+            onClick={handleChipClick.bind(null, chip.query)}
             disabled={isLoading}
             className={cn(
               'flex items-center gap-2 rounded-full border border-border bg-secondary px-5 py-2.5 text-sm font-medium text-secondary-foreground transition-all',
