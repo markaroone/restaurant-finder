@@ -4,15 +4,15 @@
 
 ## Tech Stack
 
-| Tech             | Choice                        | Purpose                    |
-| :--------------- | :---------------------------- | :------------------------- |
-| **Framework**    | **React 19 + Vite 7**        | Fast HMR, modern tooling. |
+| Tech             | Choice                        | Purpose                   |
+| :--------------- | :---------------------------- | :------------------------ |
+| **Framework**    | **React 19 + Vite 7**         | Fast HMR, modern tooling. |
 | **Styling**      | **TailwindCSS 4 + shadcn/ui** | Accessible, polished UI.  |
 | **Server State** | **TanStack Query v5**         | Data fetching, caching.   |
-| **Global State** | **Zustand 5**                 | Lightweight store.         |
-| **HTTP Client**  | **Ky**                        | Typed, prefixUrl support.  |
-| **Forms**        | **React Hook Form + Zod**     | Validation-first forms.    |
-| **Testing**      | **Vitest + RTL + happy-dom**  | Component + integration.   |
+| **Global State** | **Zustand 5**                 | Lightweight store.        |
+| **HTTP Client**  | **Ky**                        | Typed, prefixUrl support. |
+| **Forms**        | **React Hook Form + Zod**     | Validation-first forms.   |
+| **Testing**      | **Vitest + RTL + happy-dom**  | Component + integration.  |
 
 ## Critical Rules
 
@@ -39,9 +39,11 @@
 ```typescript
 // api/search-restaurants.ts
 export const searchRestaurants = withApiError(async (message: string) => {
-  return apiClient.get('execute', {
-    searchParams: { message, code: 'pioneerdevai' },
-  }).json<SearchResponse>();
+  return apiClient
+    .get('execute', {
+      searchParams: { message, code: 'pioneerdevai' },
+    })
+    .json<SearchResponse>();
 });
 ```
 

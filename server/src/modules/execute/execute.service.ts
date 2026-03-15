@@ -1,6 +1,9 @@
 import geoip from 'geoip-lite';
 
-import { BadRequestError } from '@/common/utils/api-errors';
+import {
+  AmbiguousLocationError,
+  BadRequestError,
+} from '@/common/utils/api-errors';
 import { logger } from '@/common/utils/logger';
 import {
   ExecuteResponse,
@@ -94,7 +97,58 @@ const PLACEHOLDER_LOCATIONS = [
   'my area',
   'nearby',
   'here',
-];
+]; /**
+ * Maps ISO 3166-1 alpha-2 country codes to full English country names.
+ * Covers the most common countries; falls back to the raw code for unlisted entries.
+ */
+const ISO_COUNTRY_NAMES: Record<string, string> = {
+  PH: 'Philippines',
+  US: 'United States',
+  GB: 'United Kingdom',
+  AU: 'Australia',
+  CA: 'Canada',
+  JP: 'Japan',
+  KR: 'South Korea',
+  SG: 'Singapore',
+  MY: 'Malaysia',
+  TH: 'Thailand',
+  ID: 'Indonesia',
+  VN: 'Vietnam',
+  IN: 'India',
+  CN: 'China',
+  FR: 'France',
+  DE: 'Germany',
+  ES: 'Spain',
+  IT: 'Italy',
+  PT: 'Portugal',
+  AE: 'United Arab Emirates',
+  SA: 'Saudi Arabia',
+  MX: 'Mexico',
+  BR: 'Brazil',
+  NZ: 'New Zealand',
+};
+
+/**
+ * Resolves the country name from the client's IP via geoip-lite.
+ * Used to enrich AMBIGUOUS_LOCATION suggestions with "[near], [country]".
+ * Returns null if the lookup fails or the IP is private.
+ */
+const resolveCountryFromIp = (ip?: string): string | null => {
+  if (!ip) return null;
+  const cleanIp = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+  if (
+    cleanIp === '127.0.0.1' ||
+    cleanIp === '::1' ||
+    cleanIp.startsWith('192.168.') ||
+    cleanIp.startsWith('10.')
+  )
+    return null;
+
+  const geo = geoip.lookup(cleanIp);
+  if (!geo?.country) return null;
+
+  return ISO_COUNTRY_NAMES[geo.country] ?? geo.country;
+};
 
 type LocationSource = 'near' | 'browser' | 'ip' | null;
 
@@ -195,10 +249,31 @@ export const executeSearch = async (
   }
 
   // Step 3: Foursquare search — pass ll as fallback when near is empty
-  const rawResults = await searchRestaurants(
-    searchParams,
-    hasNear ? undefined : resolvedLL,
-  );
+  let rawResults;
+  try {
+    rawResults = await searchRestaurants(
+      searchParams,
+      hasNear ? undefined : resolvedLL,
+    );
+  } catch (error) {
+    // Enrich AMBIGUOUS_LOCATION with geoip suggestion before re-throwing.
+    // The suggestion helps the frontend render "Did you mean: [near], [country]?"
+    if (error instanceof AmbiguousLocationError) {
+      const country = resolveCountryFromIp(clientIp);
+      const suggestion =
+        country != null
+          ? `${searchParams.near}, ${country}`
+          : searchParams.near;
+      logger.warn(
+        { near: searchParams.near, suggestion },
+        '🗺️  Rethrowing AMBIGUOUS_LOCATION with geoip suggestion',
+      );
+      throw new AmbiguousLocationError(searchParams.near, suggestion, {
+        query: searchParams.query,
+      });
+    }
+    throw error;
+  }
 
   // Step 4: Transform
   const results = transformResults(rawResults);

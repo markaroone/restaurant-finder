@@ -1,9 +1,12 @@
 import ky, { HTTPError } from 'ky';
 
+import {
+  AmbiguousLocationError,
+  UpstreamError,
+} from '@/common/utils/api-errors';
+import { logger } from '@/common/utils/logger';
 import { env } from '@/config/env';
 import { SearchParams } from '@/modules/execute/execute.types';
-import { UpstreamError } from '@/common/utils/api-errors';
-import { logger } from '@/common/utils/logger';
 
 const API_VERSION = '2025-06-17';
 
@@ -45,6 +48,12 @@ const foursquareApi = ky.create({
     Accept: 'application/json',
   },
 });
+
+/**
+ * Foursquare error text when the `near` param cannot be geocoded to a bounding box.
+ * Common for local abbreviations ("BGC") or ambiguous district names.
+ */
+const NEAR_BOUNDARY_ERROR = 'Boundaries could not be determined for near param';
 
 /**
  * Builds the search params record from our internal SearchParams.
@@ -107,31 +116,41 @@ export const searchRestaurants = async (
 
     return data.results ?? [];
   } catch (error) {
-    if (error instanceof HTTPError) {
-      const errorBody = await error.response
-        .text()
-        .catch(() => 'Unknown error');
-      logger.error(
-        { status: error.response.status, body: errorBody },
-        '❌ Foursquare API error',
-      );
+    if (!(error instanceof HTTPError)) throw error;
 
-      // Only include raw upstream error details in development.
-      // Production responses omit internal API details to prevent info leakage.
-      const meta =
-        env.NODE_ENV === 'development'
-          ? {
-              foursquareStatus: error.response.status,
-              foursquareBody: errorBody,
-            }
-          : { foursquareStatus: error.response.status };
+    const errorBody = await error.response.text().catch(() => '');
 
-      throw new UpstreamError(
-        `Restaurant search service returned an error (${error.response.status})`,
-        meta,
+    // Detect the specific Foursquare 400 for unresolvable `near` text.
+    // Throw AmbiguousLocationError so the caller can append a geoip suggestion
+    // and present actionable guidance to the user.
+    if (
+      error.response.status === 400 &&
+      errorBody.includes(NEAR_BOUNDARY_ERROR)
+    ) {
+      logger.warn(
+        { near: searchParams.near },
+        '⚠️  Foursquare could not geocode near param — throwing AMBIGUOUS_LOCATION',
       );
+      // Suggestion is empty string here; execute.service.ts enriches it with
+      // the geoip-derived country before re-throwing.
+      throw new AmbiguousLocationError(searchParams.near, '');
     }
-    throw error;
+
+    logger.error(
+      { status: error.response.status, body: errorBody },
+      '❌ Foursquare API error',
+    );
+
+    // Only include raw upstream error details in development (ADR-011).
+    const meta =
+      env.NODE_ENV === 'development'
+        ? { foursquareStatus: error.response.status, foursquareBody: errorBody }
+        : { foursquareStatus: error.response.status };
+
+    throw new UpstreamError(
+      `Restaurant search service returned an error (${error.response.status})`,
+      meta,
+    );
   }
 };
 

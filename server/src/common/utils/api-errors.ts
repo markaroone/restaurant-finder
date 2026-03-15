@@ -90,3 +90,23 @@ export class GatewayTimeoutError extends AppError {
     );
   }
 }
+/**
+ * Thrown when Foursquare cannot geocode the LLM-extracted `near` value (400).
+ * Indicates a user-fixable input: the location needs more context (e.g. country/city).
+ * Meta includes the raw `near` string and a geoip-derived `suggestion` for the UI.
+ */
+export class AmbiguousLocationError extends AppError {
+  constructor(
+    near: string,
+    suggestion: string,
+    meta?: Record<string, unknown>,
+  ) {
+    super(
+      `Could not determine boundaries for location: "${near}". Try adding more context, like a city or country.`,
+      HTTP_STATUS.BAD_REQUEST,
+      'AMBIGUOUS_LOCATION',
+      undefined,
+      { near, suggestion, ...meta },
+    );
+  }
+}

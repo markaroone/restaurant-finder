@@ -7,6 +7,7 @@ import { SearchBar } from '@/components/search-bar';
 import { SearchParamsPills } from '@/components/search-params-pills';
 import { useFocusOnResults } from '@/hooks/use-focus-on-results';
 import { useSearchRestaurants } from '@/hooks/use-search-restaurants';
+import { useSearchActions } from '@/stores/search-store';
 import { useSortBy } from '@/stores/sort-store';
 import { formatSearchSummary } from '@/utils/format';
 import { sortRestaurants } from '@/utils/sort';
@@ -21,12 +22,21 @@ export const SearchContent = (): ReactElement => {
     useSearchRestaurants();
 
   const sortBy = useSortBy();
+  const { search } = useSearchActions();
 
   const handleRetry = useCallback(() => {
     if (queryMessage.length > 0) {
       triggerSearch();
     }
   }, [queryMessage, triggerSearch]);
+
+  /** Called when user clicks a "Did you mean?" suggestion chip in ErrorDisplay. */
+  const handleSuggestionSearch = useCallback(
+    (suggestion: string) => {
+      search(suggestion);
+    },
+    [search],
+  );
 
   const resultsRef = useFocusOnResults(
     data !== null && data.results.length > 0,
@@ -67,6 +77,7 @@ export const SearchContent = (): ReactElement => {
           error={error}
           hasSearched={queryMessage.length > 0}
           onRetry={handleRetry}
+          onSearch={handleSuggestionSearch}
         />
       </div>
     </div>

@@ -291,6 +291,8 @@ Implement a **three-tier location priority chain**:
 - Local development on `127.0.0.1` / `::1` will skip IP geolocation (private IPs don't resolve). Browser geolocation covers this.
 - The MaxMind DB in `geoip-lite` is bundled and updated periodically with new npm versions. Not real-time accurate.
 
+> **Amendment (2026-03-15):** A fourth path was added alongside the three-tier chain: when Tier 1 (`near`) is provided but Foursquare cannot geocode it (ambiguous district abbreviation), the request now follows the `AMBIGUOUS_LOCATION` error path — see [ADR-019](#adr-019-two-layer-ambiguous-location-fix). `geoip-lite` is also used in that path to derive the country-based suggestion string.
+
 ---
 
 ## ADR-008: Three-Tier Error Display Strategy
@@ -304,13 +306,14 @@ The original `ErrorDisplay` component showed a single alarming red error panel f
 
 ### Decision
 
-Use **three-tier error display** based on error type:
+Use **four-tier error display** based on error type (updated 2026-03-15 — see [ADR-019](#adr-019-two-layer-ambiguous-location-fix)):
 
-| Tier             | Condition                                    | Icon          | Style                    | Message                                     |
-| ---------------- | -------------------------------------------- | ------------- | ------------------------ | ------------------------------------------- |
-| Missing location | `400` + `meta.reason === 'MISSING_LOCATION'` | MapPinOff     | Subtle gray text         | "Include a city, or enable location access" |
-| Bad request      | `400` (other)                                | SearchX       | Subtle gray text         | "Try something like 'sushi in downtown LA'" |
-| Server error     | `500`, network errors                        | AlertTriangle | Red panel + retry button | Error details + "Try again"                 |
+| Tier               | Condition                                      | Icon          | Style                    | Message                                                   |
+| ------------------ | ---------------------------------------------- | ------------- | ------------------------ | --------------------------------------------------------- |
+| Ambiguous location | `400` + `meta.reason === 'AMBIGUOUS_LOCATION'` | MapPin        | Subtle gray text         | "Couldn't pinpoint X. Did you mean: X, Philippines?" chip |
+| Missing location   | `400` + `meta.reason === 'MISSING_LOCATION'`   | MapPinOff     | Subtle gray text         | "Include a city, or enable location access"               |
+| Bad request        | `400` (other)                                  | SearchX       | Subtle gray text         | "Try something like 'sushi in downtown LA'"               |
+| Server error       | `500`, network errors                          | AlertTriangle | Red panel + retry button | Error details + "Try again"                               |
 
 ### Rationale
 
@@ -711,6 +714,8 @@ Each example uses the **full 6-field schema** to reinforce the exact expected ou
 - Prompt token count increases by ~500 tokens per request (from ~700 to ~1200).
 - The examples block must be kept in sync with rule changes. If a rule is updated (e.g., new `open_now` trigger phrases), the examples may need updating too.
 
+> **Amendment (2026-03-15):** A district expansion rule was added to `SYSTEM_INSTRUCTION` as part of [ADR-019](#adr-019-two-layer-ambiguous-location-fix) (Layer 1 prevention). The rule instructs the LLM to always expand neighborhood abbreviations and district names with city + country (e.g. `"BGC"` → `"Bonifacio Global City, Taguig, Philippines"`). This adds ~40 tokens per request.
+
 ---
 
 ## ADR-017: NER Heuristic Fallback for Gemini Unavailability
@@ -825,6 +830,65 @@ The heuristic fallback (`parseMessageHeuristic`) acts as the effective **attempt
 
 - LLM calls that exceed 8s now abort earlier than before (was 15s). Gemini Flash rarely takes >2s; this is an acceptable tradeoff.
 - `BASE_DELAY_MS = 200` is intentionally conservative — the max possible inter-attempt delay is ~200ms, which is negligible for users.
+
+---
+
+## ADR-019: Two-Layer Ambiguous Location Fix
+
+**Status:** Accepted
+**Date:** 2026-03-15
+
+### Context
+
+Foursquare rejects `near` values that are too ambiguous to geocode `(400 "Boundaries could not be determined for near param")`. This happens when the LLM extracts a local district abbreviation or short neighborhood name (e.g. `"Bonifacio Global City"` from `"Japanese BGC"`) without country context. The previous behavior was to surface a generic 502 error to the user.
+
+Three approaches were evaluated:
+
+| Option | Approach                                                   | Verdict                                                                               |
+| ------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| A      | Retry with user's GPS `ll`                                 | ❌ Results drift from stated intent (user asked for BGC, gets results near their GPS) |
+| B      | Geocode `near` via Nominatim → retry with BGC coordinates  | ⚠️ Accurate, but Nominatim's 1 req/sec/IP limit becomes a server-wide bottleneck      |
+| C      | LLM prompt rule (prevention) + geoip suggestion (recovery) | ✅ **Chosen**                                                                         |
+
+### Decision
+
+Implement a **two-layer defense**:
+
+**Layer 1 — Prevention (`llm.constants.ts`):** Add a rule to `SYSTEM_INSTRUCTION` instructing the LLM to always expand district names and abbreviations with city + country:
+
+> _For district names, neighborhood abbreviations, or local shorthand (e.g. "BGC", "QC", "NAIA"), always expand "near" to include the city and country (e.g. "BGC" → "Bonifacio Global City, Taguig, Philippines")._
+
+**Layer 2 — Recovery (safety net):** When Foursquare still returns the specific 400, the backend:
+
+1. Throws `AmbiguousLocationError` (status 400, code `AMBIGUOUS_LOCATION`) from `foursquare.service.ts`
+2. `execute.service.ts` catches it, looks up the client IP via `geoip-lite` → resolves country name, and re-throws with `meta: { near, suggestion, query }`
+3. The frontend `ErrorDisplay` shows a `MapPin` icon, the extracted `near` value, and a clickable "Did you mean?" chip with the full reconstructed query: `"[food] in [near], [country]"`
+4. Clicking the chip calls `onSearch(fullSuggestion)` → fires a new search with the corrected, fully-qualified string
+
+### Rationale
+
+- **Prevention is better than recovery** — Layer 1 handles 95%+ of real-world cases (~40 extra tokens, fractions of a cent per request). The LLM has global geographic knowledge and reliably expands Philippine districts, US neighborhoods, and international abbreviations.
+- **Silent fallbacks are UX-dishonest** — Using the user's GPS coordinates when they explicitly asked for a different location (Option A) would return results the user didn't expect, with no indication of the substitution.
+- **Nominatim bottleneck eliminated** — Option B's 1 req/sec/IP limit would make Nominatim a server-wide bottleneck shared across all concurrent users. Our `geoip-lite` lookup is a local DB read with zero latency and no rate limits.
+- **User agency preserved** — Instead of guessing, we show the user exactly what failed (`near` value) and what we suggest (`near, country`), and let them choose. The chip is a one-click recovery; they can also retype freely.
+- **Full intent reconstruction** — The chip includes the original food query (`query in suggestion`), so clicking "japanese in Bonifacio Global City, Philippines" re-runs the full intended search, not just the location.
+
+### Alternatives Considered
+
+| Alternative                              | Why Rejected                                                          |
+| ---------------------------------------- | --------------------------------------------------------------------- |
+| Retry with user GPS `ll`                 | Silently returns wrong-location results — semantically incorrect      |
+| Nominatim geocode + retry                | 1 req/sec/IP shared across all users → server bottleneck at any scale |
+| LLM to extract broader location on retry | Second LLM call on error path — latency + cost, no guarantee          |
+| Generic error with no suggestion         | Less helpful — user doesn't know what we tried or how to fix it       |
+
+### Consequences
+
+- **Layer 1**: `SYSTEM_INSTRUCTION` grows by ~40 tokens per request.
+- **Layer 2**: `api-errors.ts` gains a new `AmbiguousLocationError` class. `foursquare.service.ts` reads the raw Foursquare 400 body before classifying the error. `execute.service.ts` calls `geoip-lite` a second time (country only; cheap local read) to build the suggestion.
+- **Frontend**: `ErrorDisplay` gains a fourth tier with a `MapPin` icon and an interactive suggestion chip. `onSearch` prop threaded through `RestaurantList` → `ErrorDisplay`.
+- **Known limitation**: The geoip country comes from the user's IP, not the searched place. Rare edge case: a user in Japan searching for "tacos in LA" where "LA" fails — they'd see "Los Angeles, Japan" as the suggestion. Acceptable for the current scope.
+- Tests added for `AmbiguousLocationError` detection and re-throw behavior.
 
 ---
 

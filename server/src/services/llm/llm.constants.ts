@@ -88,6 +88,7 @@ Location rules:
 - "midtown" → "Midtown Manhattan, New York" (use best guess)
 - Include city and state/country when the user only provides a neighborhood name
 - Fix obvious typos in location names
+- For district names, neighborhood abbreviations, or local shorthand (e.g. "BGC", "QC", "NAIA"), always expand "near" to include the city and country (e.g. "BGC" → "Bonifacio Global City, Taguig, Philippines", "QC" → "Quezon City, Metro Manila, Philippines", "DTLA" → "Downtown Los Angeles, CA, USA")
 - For mixed-language queries, extract food and location separately and translate each to English
 
 Handling contradictions:

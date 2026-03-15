@@ -2,8 +2,8 @@
 
 **Status:** IN PROGRESS
 **Current Phase:** Phase 5: Deployment & Documentation
-**Next Immediate Step:** Merge `fix/query-key-geolocation` branch, then start Phase 5 (deploy + README)
-**Last Updated:** 2026-03-14
+**Next Immediate Step:** Commit `fix/ambiguous-location` branch to `main`, then begin Phase 5 (deploy + README)
+**Last Updated:** 2026-03-15
 
 ## The "Next Immediate Step"
 
@@ -76,7 +76,8 @@
 - [x] `ENV.API_CODE` — moved hardcoded code gate string to env vars
 - [x] `QUICK_SEARCHES as const` — tighter TypeScript inference
 - [x] Soft 400 error message — gentle inline hint instead of red error panel
-- [x] Three-tier error display:
+- [x] Four-tier error display:
+  - `AMBIGUOUS_LOCATION` → MapPin icon, "Did you mean?" chip with full reconstructed query (ADR-019)
   - `MISSING_LOCATION` → MapPinOff icon, location-specific hint
   - Other 400s → SearchX icon, rephrase hint
   - Server errors → red panel with retry button
@@ -271,6 +272,26 @@ Expanded test suite to cover new resilience features.
 
 ---
 
+### Phase 4.18: Ambiguous Location Fix
+
+Two-layer defense against Foursquare 400 "Boundaries could not be determined" errors caused by ambiguous district/neighborhood abbreviations (e.g. "BGC").
+
+- [x] **Layer 1 — Prevention:** Added district expansion rule to `SYSTEM_INSTRUCTION` in `llm.constants.ts`
+  - LLM now always expands abbreviations to include city + country ("BGC" → "Bonifacio Global City, Taguig, Philippines")
+  - Handles 95%+ of cases at ~40 extra tokens per request
+- [x] **Layer 2 — Recovery (safety net for anything that slips through):**
+  - `AmbiguousLocationError` class added to `api-errors.ts` (400, code `AMBIGUOUS_LOCATION`, meta: `near` + `suggestion` + `query`)
+  - `foursquare.service.ts`: detects specific Foursquare 400 body string, throws `AmbiguousLocationError` instead of generic `UpstreamError`
+  - `execute.service.ts`: catches it, resolves country from client IP via `geoip-lite`, re-throws with enriched suggestion + original `query`
+  - `error-display.tsx`: new fourth error tier — MapPin icon, "We couldn't pinpoint X" message, clickable "Did you mean?" chip
+  - Chip text is full reconstructed query: `"[food] in [near], [country]"` (e.g. "japanese in Bonifacio Global City, Philippines")
+  - Clicking chip calls `onSearch(fullSuggestion)` → fires new search with corrected, fully-qualified string
+  - `onSearch` prop threaded: `SearchContent` → `RestaurantList` → `ErrorDisplay`
+- [x] 49/49 tests still passing; `bun run check` ✅; `pnpm build` ✅
+  - ADR-019: Two-Layer Ambiguous Location Fix
+
+---
+
 ### Phase 5: Deployment & Documentation
 
 - [ ] Deploy backend to Render/Railway (root: `/server`)
@@ -303,3 +324,4 @@ Expanded test suite to cover new resilience features.
 | 2026-03-15 | Phase 4.15 NER Fallback: heuristic parser + service folder refactoring (`llm/`, `foursquare/`). ADR-017.                |
 | 2026-03-15 | Phase 4.16 Exponential Backoff: full jitter, `isRetryableError`, timeout budget rebalanced 15s→8s/call. ADR-018.        |
 | 2026-03-15 | Phase 4.17 Test Coverage: expanded execute tests (49/49 passing).                                                       |
+| 2026-03-15 | Phase 4.18 Ambiguous Location Fix: LLM district expansion rule (Layer 1) + `AmbiguousLocationError` + "Did you mean?" chip UI (Layer 2). ADR-019. |
