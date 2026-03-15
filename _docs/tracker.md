@@ -100,8 +100,8 @@
 - [x] Backend tests:
   - [x] `execute.schema.test.ts` — code validation, message validation, searchParams validation (20 tests)
   - [x] `execute.service.test.ts` — mocked LLM/Foursquare, transform logic, error handling (9 tests)
-  - [x] `execute.integration.test.ts` — 401/422/200/400 cases with Supertest (9 tests)
-- [x] Run `bun test` — 38 tests passing, 72 assertions
+  - [x] `execute.integration.test.ts` — 401/422/200/400 cases with Supertest (13 tests)
+- [x] Run `bun test` — 42 tests passing, 79 assertions
 - [x] Run `bun run check` — no lint/type errors
 
 ---
@@ -193,6 +193,20 @@ Conducted NLP edge-case fuzzing audit targeting emoji/symbol overload, slang/idi
 
 ---
 
+### Phase 4.12: Guardrails & Prompt Injection Defense
+
+Implemented three remaining security features from the guardrails research audit. Upgraded pipeline from triple-validation to five-layer defense.
+
+- [x] Prompt injection detection (`detectInjection`) — regex pre-screen catches common injection patterns before LLM call
+  - Exported from `llm.service.ts`, called in `execute.service.ts` for testability
+- [x] Output filtering (`guardOutput`) — post-validation check for system prompt leakage and PII in output fields
+- [x] Token usage monitoring — logs `usageMetadata` from Gemini response for anomaly detection
+- [x] 4 new integration tests for injection detection (42/42 total)
+  - ADR-015: Five-Layer Defense Pipeline
+- [x] Refactored `llm.service.ts` into clearly-named pipeline stages (`sanitizeInput`, `callLlm`, `validateAndNormalize`, `guardOutput`)
+
+---
+
 ### Phase 5: Deployment & Documentation
 
 - [ ] Deploy backend to Render/Railway (root: `/server`)
@@ -219,3 +233,4 @@ Conducted NLP edge-case fuzzing audit targeting emoji/symbol overload, slang/idi
 | 2026-03-14 | Phase 4.9 UI Polish & Client Sorting: dynamic sorting dropdown (Relevance/Distance) and reactivity fixes.     |
 | 2026-03-15 | Phase 4.10 UX Audit: 8 a11y fixes (ARIA, focus, touch targets) and dynamic time-based quick search pills.     |
 | 2026-03-15 | Phase 4.11 NLP Fuzzing: Unicode sanitizer, prompt hardening (emoji, location i18n, slang, contradictions). ADR-014. |
+| 2026-03-15 | Phase 4.12 Guardrails: injection detection, output filtering, token monitoring. Pipeline → five-layer defense. ADR-015. |

@@ -1,16 +1,16 @@
 import geoip from 'geoip-lite';
 
-import { parseMessage } from '@/services/llm.service';
-import {
-  searchRestaurants,
-  FoursquarePlace,
-} from '@/services/foursquare.service';
+import { BadRequestError } from '@/common/utils/api-errors';
+import { logger } from '@/common/utils/logger';
 import {
   ExecuteResponse,
   TransformedRestaurant,
 } from '@/modules/execute/execute.types';
-import { BadRequestError } from '@/common/utils/api-errors';
-import { logger } from '@/common/utils/logger';
+import {
+  FoursquarePlace,
+  searchRestaurants,
+} from '@/services/foursquare.service';
+import { detectInjection, parseMessage } from '@/services/llm.service';
 
 /**
  * Transforms a raw Foursquare place into our clean client-facing shape.
@@ -95,6 +95,25 @@ const PLACEHOLDER_LOCATIONS = [
   'here',
 ];
 
+type LocationSource = 'near' | 'browser' | 'ip' | null;
+
+/**
+ * Builds a human-readable distance suffix based on which location tier resolved.
+ * e.g., "away from Makati City", "away from you", "away from you (approx.)"
+ */
+const buildDistanceLabel = (source: LocationSource, near: string): string => {
+  switch (source) {
+    case 'near':
+      return `away from ${near}`;
+    case 'browser':
+      return 'away from you';
+    case 'ip':
+      return 'away from you (approx.)';
+    default:
+      return 'away';
+  }
+};
+
 /**
  * Main search pipeline: LLM parsing → location resolution → Foursquare search → transform.
  *
@@ -114,7 +133,8 @@ export const executeSearch = async (
   ll?: string,
   clientIp?: string,
 ): Promise<ExecuteResponse> => {
-  // Step 1: LLM parsing
+  // Step 1: Injection pre-screen + LLM parsing
+  detectInjection(message);
   const searchParams = await parseMessage(message);
 
   // Sanitize placeholder locations the LLM sometimes produces
@@ -128,7 +148,7 @@ export const executeSearch = async (
   const hasLL = ll != null && ll.length > 0;
 
   // Track which tier resolved the location for the distance label
-  let locationSource: 'near' | 'browser' | 'ip' | null = null;
+  let locationSource: LocationSource = null;
 
   if (hasNear) {
     locationSource = 'near';
@@ -146,7 +166,8 @@ export const executeSearch = async (
     }
   }
 
-  const hasFallbackLL = resolvedLL != null && resolvedLL.length > 0;
+  const hasFallbackLL =
+    resolvedLL !== null && resolvedLL !== undefined && resolvedLL.length > 0;
 
   if (!hasNear && !hasFallbackLL) {
     throw new BadRequestError(
@@ -164,15 +185,7 @@ export const executeSearch = async (
   // Step 4: Transform
   const results = transformResults(rawResults);
 
-  // Step 5: Build distance label based on which tier resolved the location
-  let distanceLabel = 'away';
-  if (locationSource === 'near') {
-    distanceLabel = `away from ${searchParams.near}`;
-  } else if (locationSource === 'browser') {
-    distanceLabel = 'away from you';
-  } else if (locationSource === 'ip') {
-    distanceLabel = 'away from you (approx.)';
-  }
+  const distanceLabel = buildDistanceLabel(locationSource, searchParams.near);
 
   return {
     results,

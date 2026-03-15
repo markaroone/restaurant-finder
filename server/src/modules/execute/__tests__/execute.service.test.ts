@@ -10,6 +10,7 @@ const mockSearchRestaurants =
   mock<(params: SearchParams, ll?: string) => Promise<FoursquarePlace[]>>();
 
 mock.module('@/services/llm.service', () => ({
+  detectInjection: () => {},
   parseMessage: mockParseMessage,
 }));
 

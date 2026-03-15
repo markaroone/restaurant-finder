@@ -54,11 +54,13 @@ The Gemini SDK's `responseJsonSchema` guarantees the response _structure_ matche
 
 ### Decision
 
-Apply **two layers of validation** (later extended to three — see [ADR-014](#adr-014-unicode-sanitization-pre-processor)):
+Apply **two layers of validation** (later extended to five — see [ADR-014](#adr-014-unicode-sanitization-pre-processor) and [ADR-015](#adr-015-five-layer-defense-pipeline-prompt-injection--output-filtering)):
 
 1. **Layer 1 — SDK schema** — Guarantees JSON structure (types, field names)
 2. **Layer 2 — Zod schema** — Validates business rules (price 1-4, limit 1-50, non-empty strings)
 3. **Layer 0 — Unicode sanitization** — _(Added in ADR-014)_ Strips adversarial characters before the LLM sees the input
+4. **Pre-screen — Injection detection** — _(Added in ADR-015)_ Regex catches known injection patterns before LLM call
+5. **Post-gate — Output filtering** — _(Added in ADR-015)_ Checks for system prompt leakage and PII in output
 
 ### Rationale
 
@@ -556,12 +558,12 @@ Layer 2: Zod schema            → validates business rules
 
 The sanitizer strips:
 
-| Category | Unicode Range | Why Removed |
-| --- | --- | --- |
-| Combining diacritical marks (Zalgo) | U+0300–U+036F, U+0489 | Corrupts base words → garbage API queries |
-| Zero-width characters (ZWSP, ZWNJ, ZWJ) | U+200B–U+200D, U+FEFF | Invisible padding, wastes LLM tokens |
-| Null bytes | U+0000 | Can truncate strings or break JSON parsing |
-| Variation selectors | U+FE00–U+FE0F | No semantic value, confuses downstream matching |
+| Category                                | Unicode Range         | Why Removed                                     |
+| --------------------------------------- | --------------------- | ----------------------------------------------- |
+| Combining diacritical marks (Zalgo)     | U+0300–U+036F, U+0489 | Corrupts base words → garbage API queries       |
+| Zero-width characters (ZWSP, ZWNJ, ZWJ) | U+200B–U+200D, U+FEFF | Invisible padding, wastes LLM tokens            |
+| Null bytes                              | U+0000                | Can truncate strings or break JSON parsing      |
+| Variation selectors                     | U+FE00–U+FE0F         | No semantic value, confuses downstream matching |
 
 The sanitizer also collapses multiple whitespace characters into a single space and trims. If the sanitized string is fewer than 2 characters, `parseMessage()` throws a `BadRequestError` immediately — skipping the LLM call entirely.
 
@@ -576,22 +578,86 @@ The sanitizer does **NOT** remove:
 - **Pre-LLM is the right place** — Sanitizing before Gemini sees the input prevents garbage-in-garbage-out. Post-LLM sanitization would be too late: the LLM would already return corrupted `query`/`near` values.
 - **Targeted stripping** — Only characters with zero semantic value are removed. This avoids the false-positive risk of over-sanitizing legitimate multilingual input.
 - **Cost savings** — Rejecting pure-Zalgo or pure-ZWSP inputs at Layer 0 avoids wasting a Gemini API call (~$0.30/1M tokens) on input that would produce unusable output.
-- **Complements existing prompt rules** — The SYSTEM_INSTRUCTION already handles emoji translation, slang, and multilingual text. The sanitizer handles what the LLM _cannot_ — invisible/corrupted characters that survive tokenization.
+- **Complements existing prompt rules** — The SYSTEM*INSTRUCTION already handles emoji translation, slang, and multilingual text. The sanitizer handles what the LLM \_cannot* — invisible/corrupted characters that survive tokenization.
 
 ### Alternatives Considered
 
-| Alternative | Why Rejected |
-| --- | --- |
-| Trust the LLM to handle Zalgo | Gemini sometimes passes through combining marks verbatim → silent 0-result failures |
-| Full Unicode normalization (NFC/NFD) | Too aggressive — would alter legitimate CJK and diacritical input |
-| Allowlist approach (only permit certain scripts) | Blocks legitimate scripts we haven't anticipated; fails-closed |
-| Post-LLM sanitization of `query`/`near` values | Too late — the LLM already misinterpreted the corrupted input |
+| Alternative                                      | Why Rejected                                                                        |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| Trust the LLM to handle Zalgo                    | Gemini sometimes passes through combining marks verbatim → silent 0-result failures |
+| Full Unicode normalization (NFC/NFD)             | Too aggressive — would alter legitimate CJK and diacritical input                   |
+| Allowlist approach (only permit certain scripts) | Blocks legitimate scripts we haven't anticipated; fails-closed                      |
+| Post-LLM sanitization of `query`/`near` values   | Too late — the LLM already misinterpreted the corrupted input                       |
 
 ### Consequences
 
 - The validation pipeline is now triple-layered: sanitize → SDK schema → Zod. All three are cheap (<1ms combined for non-LLM layers).
 - Edge case: a user who _intentionally_ uses combining marks in a legitimate way (e.g., Vietnamese tonal marks) could have them stripped. In practice, JavaScript regex `[\u0300-\u036F]` covers combining marks that overlay existing characters (Zalgo), not precomposed Vietnamese characters like `ệ` which are single code points.
 - The `SYSTEM_INSTRUCTION` was also expanded in this phase with emoji handling, location translation, expanded `open_now` triggers, and contradiction handling rules — these are prompt tuning, not architectural decisions, so they are tracked in the Phase 4.11 changelog rather than a separate ADR.
+
+---
+
+## ADR-015: Five-Layer Defense Pipeline (Prompt Injection + Output Filtering)
+
+**Status:** Accepted
+**Date:** 2026-03-15
+
+### Context
+
+The LLM pipeline used a triple-validation pattern (Unicode sanitization → SDK schema → Zod). A security research audit (Concept 09) identified three unimplemented defenses: prompt injection detection, output filtering, and token usage monitoring. While the structured output mode (JSON schema constraint) provides strong structural protection — the model physically cannot output free-form text — additional pre-screen and post-validation guards were identified as low-cost improvements.
+
+### Decision
+
+Upgrade the pipeline from triple-validation to a **five-layer defense**:
+
+```
+detectInjection(message)        Pre-screen: regex catches known injection patterns
+  ↓
+sanitizeInput(message)          Stage 1: strips adversarial unicode
+  ↓
+callLlm(sanitized)              Stage 2: Gemini SDK enforces JSON schema shape (+ token logging)
+  ↓
+validateAndNormalize(raw)       Stage 3: Zod enforces business rules + food guard
+  ↓
+guardOutput(params)             Post-gate: checks for prompt leakage + PII in output
+```
+
+**Layer details:**
+
+| Layer      | Function                   | What it catches                                                            | Performance                          |
+| ---------- | -------------------------- | -------------------------------------------------------------------------- | ------------------------------------ |
+| Pre-screen | `detectInjection`          | Common injection phrases ("ignore instructions", "you are now", "system:") | ~0.01ms (regex on ≤500 chars)        |
+| Post-gate  | `guardOutput`              | System prompt leakage in output fields, PII (phone/email) in output        | ~0.01ms (regex + string search)      |
+| Monitoring | Token logging in `callLlm` | Anomalous input/output token ratios (jailbreak signal)                     | ~0ms (reads existing response field) |
+
+**Architectural choice:** `detectInjection` is **exported** from `llm.service.ts` and called in `execute.service.ts` (not inside `parseMessage`). This ensures:
+
+- Injection detection runs even when `parseMessage` is mocked in integration tests
+- The service layer controls the call order (injection check → LLM parse)
+- Both functions remain independently testable
+
+### Rationale
+
+- **Total latency impact: negligible** — All three features are pure CPU operations on short strings. The LLM call (~200–800ms) dominates by 4 orders of magnitude.
+- **Pre-screen is a "speed bump"** — Regex-based injection detection catches low-effort attacks and saves API credits. It is not a silver bullet; determined attackers can rephrase. The real structural defense remains the JSON-schema-constrained output.
+- **Output filtering is defense-in-depth** — Even though structured output mode prevents free-form leakage, checking for system prompt keywords in the `query`/`near` fields catches edge cases where the LLM echoes fragments of the system instruction as "food types."
+- **Token monitoring is passive** — Zero overhead, creates an audit trail for forensic analysis without affecting request latency.
+
+### Alternatives Considered
+
+| Alternative                                              | Why Rejected                                                                                                               |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| ML-based injection classifier (Rebuff, fine-tuned model) | Adds latency and complexity. Regex pre-screen is sufficient for current threat model.                                      |
+| Inject detection inside `parseMessage` only              | Integration tests mock `parseMessage`, bypassing detection. Exporting and calling separately ensures testability.          |
+| Block all queries containing "system"                    | Too aggressive — "sushi restaurant with sound system" would be rejected. Pattern-based detection is more precise.          |
+| Skip output filtering (trust structured output)          | Structured output constrains the shape but not the values. The LLM can still echo system prompt fragments as field values. |
+
+### Consequences
+
+- The `INJECTION_PATTERNS` array is static and requires manual updates for new attack vectors. A production system would benefit from a dynamic blocklist or ML classifier.
+- `guardOutput` checks only `query` and `near` fields. Other fields (`price`, `open_now`, `limit`) are numeric/boolean and inherently safe from text-based leakage.
+- Frontend error handling already covers the new `PROMPT_INJECTION` and `OUTPUT_FILTERED` reason codes via the existing generic 400 handler (`SearchX` icon + rephrase hint). No frontend changes were needed.
+- Test count increased from 38 to 42 (4 new injection detection integration tests).
 
 ---
 
