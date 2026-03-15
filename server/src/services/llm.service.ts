@@ -114,22 +114,15 @@ Unsearchable criteria:
 - Ignore requests about ambiance, dress code, parking, quality ratings (e.g., "best", "worst"), or non-food attributes
 - These cannot be searched via the restaurant API; just extract what IS searchable`;
 
+// ─── Validation Stage 1: Input Sanitization ──────────────────────────────────
+
 /**
- * Parses a natural language message into structured search parameters
- * using Google Gemini with structured output mode.
+ * Strips adversarial unicode characters and enforces a minimum length.
+ * This is the first line of defense before the input ever reaches the LLM.
  *
- * Uses a triple-validation pattern:
- * 1. Unicode sanitization (strips adversarial characters)
- * 2. Gemini SDK guarantees valid JSON structure
- * 3. Zod validates business rules (price 1-4, limit 1-50, etc.)
- *
- * @param message - The user's natural language search query
- * @returns Validated SearchParams
- * @throws BadRequestError if parsing fails after retries
- * @throws UpstreamError if the Gemini API is unavailable
+ * @throws BadRequestError if the sanitized input is too short to be meaningful
  */
-export const parseMessage = async (message: string): Promise<SearchParams> => {
-  // Pre-process: strip adversarial unicode before LLM sees it
+const sanitizeInput = (message: string): string => {
   const sanitized = sanitizeUnicode(message);
 
   if (sanitized.length < 2) {
@@ -138,77 +131,132 @@ export const parseMessage = async (message: string): Promise<SearchParams> => {
     );
   }
 
+  return sanitized;
+};
+
+// ─── Validation Stage 2: LLM Structured Output ───────────────────────────────
+
+/**
+ * Calls the Gemini API with a strict JSON schema, enforcing structured output.
+ * The SDK guarantees the response matches the schema shape; a timeout aborts
+ * long-running calls to avoid indefinite hangs.
+ *
+ * @throws UpstreamError if Gemini returns an empty response or times out
+ */
+const callLlm = async (
+  sanitized: string,
+  attempt: number,
+): Promise<unknown> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
+
+  let response;
+  try {
+    response = await ai.models.generateContent({
+      model: MODEL,
+      contents: sanitized,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        responseMimeType: 'application/json',
+        responseJsonSchema,
+        temperature: 0.1,
+        abortSignal: controller.signal,
+      },
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!response.text) {
+    throw new UpstreamError('Gemini returned an empty response', { attempt });
+  }
+
+  // SDK guarantees valid JSON structure, but we parse defensively
+  return JSON.parse(response.text);
+};
+
+// ─── Validation Stage 3: Business Rule Validation ────────────────────────────
+
+/**
+ * Normalizes the raw LLM output and validates it against the Zod schema.
+ * Also enforces the food-relatedness guard as a semantic business rule.
+ *
+ * Returns `null` if Zod validation fails (so the caller can retry),
+ * or throws BadRequestError immediately for non-retryable semantic failures.
+ */
+const validateAndNormalize = (
+  raw: unknown,
+  attempt: number,
+): SearchParams | null => {
+  // Normalize price: 0 means "not specified" → null
+  if (
+    typeof raw === 'object' &&
+    raw !== null &&
+    'price' in raw &&
+    (raw as Record<string, unknown>).price === 0
+  ) {
+    (raw as Record<string, unknown>).price = null;
+  }
+
+  const result = searchParamsSchema.safeParse(raw);
+
+  if (!result.success) {
+    logger.warn(
+      { errors: result.error.issues, attempt },
+      '⚠️ LLM output failed Zod validation',
+    );
+    return null; // Signal the retry loop to try again
+  }
+
+  if (!result.data.is_food_related) {
+    throw new BadRequestError(
+      'This app only searches for restaurants and food. Try searching for a cuisine like "sushi" or "Italian".',
+      { reason: 'NOT_FOOD_RELATED' },
+    );
+  }
+
+  return result.data;
+};
+
+// ─── Orchestrator ─────────────────────────────────────────────────────────────
+
+/**
+ * Parses a natural language message into structured search parameters
+ * using Google Gemini with structured output mode.
+ *
+ * Triple-validation pattern:
+ *   Stage 1 — `sanitizeInput`       → strips adversarial unicode
+ *   Stage 2 — `callLlm`             → Gemini SDK enforces JSON schema shape
+ *   Stage 3 — `validateAndNormalize` → Zod enforces business rules + food guard
+ *
+ * @param message - The user's natural language search query
+ * @returns Validated SearchParams
+ * @throws BadRequestError if parsing fails after retries
+ * @throws UpstreamError if the Gemini API is unavailable
+ */
+export const parseMessage = async (message: string): Promise<SearchParams> => {
+  const sanitized = sanitizeInput(message); // Stage 1
+
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      // Abort if Gemini doesn't respond within 15s (typical: 200-800ms)
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
+      const raw = await callLlm(sanitized, attempt); // Stage 2
 
-      let response;
-      try {
-        response = await ai.models.generateContent({
-          model: MODEL,
-          contents: sanitized,
-          config: {
-            systemInstruction: SYSTEM_INSTRUCTION,
-            responseMimeType: 'application/json',
-            responseJsonSchema,
-            temperature: 0.1,
-            abortSignal: controller.signal,
-          },
-        });
-      } finally {
-        clearTimeout(timer);
-      }
+      const params = validateAndNormalize(raw, attempt); // Stage 3
 
-      if (!response.text) {
-        throw new UpstreamError('Gemini returned an empty response', {
-          attempt,
-        });
-      }
-
-      // 1. Parse JSON (guaranteed valid by SDK, but let's be safe)
-      const raw: unknown = JSON.parse(response.text);
-
-      // Normalize price: 0 means "not specified" → null
-      if (
-        typeof raw === 'object' &&
-        raw !== null &&
-        'price' in raw &&
-        (raw as Record<string, unknown>).price === 0
-      ) {
-        (raw as Record<string, unknown>).price = null;
-      }
-
-      // 2. Validate with Zod (business rules)
-      const result = searchParamsSchema.safeParse(raw);
-
-      if (result.success) {
-        // 3. Check if the query is food-related
-        if (!result.data.is_food_related) {
-          throw new BadRequestError(
-            'This app only searches for restaurants and food. Try searching for a cuisine like "sushi" or "Italian".',
-            { reason: 'NOT_FOOD_RELATED' },
-          );
-        }
-
+      if (params) {
         logger.info(
-          { searchParams: result.data, attempt },
+          { searchParams: params, attempt },
           '✅ LLM parsed message successfully',
         );
-        return result.data;
+        return params;
       }
 
-      // Zod validation failed — log and retry
-      logger.warn(
-        { errors: result.error.issues, attempt },
-        '⚠️ LLM output failed Zod validation',
-      );
-      lastError = result.error;
+      // Zod validation failed — loop will retry
+      lastError = new Error('Zod validation failed');
     } catch (error) {
-      // Gemini API error — don't retry on auth/quota errors
+      // Never retry on known semantic or upstream errors
       if (error instanceof BadRequestError || error instanceof UpstreamError) {
         throw error;
       }
@@ -216,7 +264,6 @@ export const parseMessage = async (message: string): Promise<SearchParams> => {
       logger.error({ error, attempt }, '❌ LLM call failed');
       lastError = error;
 
-      // Don't retry on the last attempt
       if (attempt === MAX_ATTEMPTS) break;
     }
   }
