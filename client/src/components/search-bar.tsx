@@ -66,7 +66,7 @@ export const SearchBar = ({
 
   return (
     <div className="text-center">
-      <h1 className="text-4xl leading-tight font-extrabold tracking-tight text-forest lg:text-5xl">
+      <h1 className="text-4xl leading-none font-extrabold tracking-tight text-forest lg:text-5xl lg:leading-none">
         Find your next meal
       </h1>
       <p className="mt-3 text-muted-foreground">
@@ -74,7 +74,7 @@ export const SearchBar = ({
       </p>
 
       <form onSubmit={handleSubmit} className="mx-auto mt-8 w-full max-w-2xl">
-        <div className="flex h-14 w-full items-stretch overflow-hidden rounded-xl border border-border shadow-lg">
+        <div className="flex h-14 w-full items-stretch overflow-hidden rounded-xl border border-border shadow-lg transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20">
           <div className="flex items-center justify-center bg-card pl-5">
             <Search
               className="h-5 w-5 text-muted-foreground"
@@ -96,7 +96,7 @@ export const SearchBar = ({
             <button
               type="button"
               onClick={handleResetSearchBar}
-              className="flex items-center justify-center bg-card px-2 text-muted-foreground transition-colors hover:text-foreground"
+              className="flex items-center justify-center bg-card px-2 text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset active:scale-95"
               aria-label="Clear search"
             >
               <X className="size-4" />
@@ -107,7 +107,7 @@ export const SearchBar = ({
             <Button
               type="submit"
               disabled={isLoading || value.trim().length < 2}
-              className="rounded-lg bg-primary px-6 font-bold text-primary-foreground hover:bg-primary/90"
+              className="rounded-md bg-primary px-6 font-bold text-primary-foreground hover:bg-primary/90"
             >
               {isLoading ? 'Searching...' : 'Search'}
             </Button>
@@ -123,8 +123,10 @@ export const SearchBar = ({
             onClick={handleChipClick.bind(null, chip.query)}
             disabled={isLoading}
             className={cn(
-              'flex items-center gap-2 rounded-full border border-border bg-secondary px-5 py-2.5 text-sm font-medium text-secondary-foreground transition-all',
+              'flex items-center gap-2 rounded-full border border-border bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-all',
               'hover:border-forest/20 hover:shadow-sm',
+              'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              'active:scale-[0.97] active:shadow-none',
               'disabled:cursor-not-allowed disabled:opacity-50',
             )}
           >

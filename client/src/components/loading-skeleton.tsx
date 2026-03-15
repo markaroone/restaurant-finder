@@ -44,7 +44,7 @@ export const LoadingSkeleton = (): ReactNode => {
               </div>
             </div>
             {/* CTA */}
-            <Skeleton className="h-10 w-40 rounded-lg" />
+            <Skeleton className="h-10 w-40 rounded-md" />
           </div>
         </div>
       ))}

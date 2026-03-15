@@ -28,10 +28,11 @@
 
 ## Git & Commits
 
+- **Never commit directly to `main`.** Always switch to a new branch with a suitable name based on the feature being worked on (e.g., `feat/search-parser`, `style/design-audit-fixes`).
 - **Conventional Commits:** `<type>(<scope>): <subject>` (e.g., `feat(execute): add LLM parsing service`)
 - **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 - **Body:** Include for non-trivial changes. Explain what changed and why.
-- **Branches:** `feat/`, `fix/`, `docs/`, `chore/`. Merge to `main` via `--no-ff`.
+- **Branches:** Prefix with `feat/`, `fix/`, `docs/`, `style/`, `chore/` etc. Merge to `main` via `--no-ff`.
 
 ## SDD Documentation
 

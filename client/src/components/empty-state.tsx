@@ -47,7 +47,7 @@ export const EmptyState = ({ hasSearched }: EmptyStateProps): ReactNode => {
         {EXAMPLE_QUERIES.map((query) => (
           <span
             key={query}
-            className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground"
+            className="rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground"
           >
             {query}
           </span>

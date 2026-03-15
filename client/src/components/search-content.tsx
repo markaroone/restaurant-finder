@@ -44,7 +44,7 @@ export const SearchContent = (): ReactElement => {
   );
 
   return (
-    <div className="mx-auto flex max-w-240 flex-col px-6 py-12 lg:py-20">
+    <div className="mx-auto flex max-w-5xl flex-col px-6 py-12 lg:py-20">
       <SearchBar isLoading={isLoading} onSearch={triggerSearch} />
 
       {/* AI Transparency — show what the LLM (or heuristic) extracted */}
@@ -57,7 +57,7 @@ export const SearchContent = (): ReactElement => {
         </div>
       )}
 
-      <div ref={resultsRef} tabIndex={-1} className="mt-12 outline-none">
+      <div ref={resultsRef} tabIndex={-1} className="mt-8 outline-none">
         <RestaurantList
           results={sortedResults}
           searchSummary={searchSummary}

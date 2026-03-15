@@ -42,19 +42,19 @@ export const RestaurantCard = ({
   return (
     <div
       className={cn(
-        'rounded-xl border p-6 transition-shadow hover:shadow-md md:p-',
+        'rounded-xl border p-6 transition-shadow hover:shadow-md md:p-8',
         alternate
           ? 'border-secondary/50 bg-secondary'
           : 'border-border bg-card shadow-sm',
       )}
     >
-      <div className="flex flex-col justify-between gap-5 md:flex-row md:items-start">
+      <div className="flex flex-col justify-between gap-6 md:flex-row md:items-start">
         {/* Left: Content */}
         <div className="flex-1">
           {/* Category row */}
           <div className="mb-2 flex items-center gap-3">
             {categoryIcon ? (
-              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-forest">
+              <span className="flex h-7 w-7 items-center justify-center rounded-sm bg-forest">
                 <img
                   src={categoryIcon}
                   alt=""
@@ -65,7 +65,7 @@ export const RestaurantCard = ({
             ) : (
               <Utensils className="h-5 w-5 text-forest" aria-hidden="true" />
             )}
-            <span className="text-xs font-bold tracking-widest text-muted-foreground uppercase">
+            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               {categoryText}
             </span>
           </div>
@@ -76,7 +76,7 @@ export const RestaurantCard = ({
           </h3>
 
           {/* Metadata */}
-          <div className="flex flex-col gap-1.5 text-muted-foreground">
+          <div className="flex flex-col gap-2 text-muted-foreground">
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 shrink-0" aria-hidden="true" />
               <p className="text-sm">{restaurant.address || '-'}</p>
@@ -104,7 +104,7 @@ export const RestaurantCard = ({
           <div className="flex min-w-40 flex-col gap-3">
             <Button
               asChild
-              className="w-full bg-forest font-bold text-secondary hover:bg-forest/90"
+              className="w-full bg-forest font-bold text-secondary hover:bg-forest/90 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-card active:bg-forest/80"
             >
               <a
                 href={googleMapsUrl}
