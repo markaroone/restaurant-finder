@@ -20,7 +20,7 @@ export const executeQuerySchema = z.object({
       .string()
       .max(40, 'll value too long')
       .regex(
-        /^-?\d{1,3}(\.\d{1,10})?,-?\d{1,3}(\.\d{1,10})?$/,
+        /^-?\d{1,3}(\.\d{1,15})?,-?\d{1,3}(\.\d{1,15})?$/,
         'll must be in the format "lat,lng" (e.g., "14.55,121.02")',
       )
       .optional(),
