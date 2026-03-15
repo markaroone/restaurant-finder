@@ -892,4 +892,49 @@ Implement a **two-layer defense**:
 
 ---
 
+## ADR-020: Security Hardening (SAST Fixes)
+
+**Status:** Accepted
+**Date:** 2026-03-15
+
+### Context
+
+A comprehensive Static Application Security Testing (SAST) review identified 8 vulnerabilities across the backend. Four were prioritized for immediate fixing based on exploitability and impact. The remaining four (V1: query-string auth leakage, V3: 10MB body parser, V5: access code in logs, V6: `instance` URL leakage) are deferred — they require broader architectural changes (auth header migration) or are low risk given the app's current scope.
+
+### Decision
+
+Implement fixes for four vulnerabilities:
+
+| ID  | Vulnerability                    | Fix                                                                       | File(s)               |
+| --- | -------------------------------- | ------------------------------------------------------------------------- | --------------------- |
+| V2  | Trust proxy unconfigured         | `app.set('trust proxy', 1)` as first action in `registerGlobalMiddleware` | `middleware/index.ts` |
+| V4  | CORS null-origin bypass          | Block `!origin` when `NODE_ENV === 'production'`                          | `middleware/cors.ts`  |
+| V7  | ReDoS in `ll` regex              | `.max(40)` + bounded quantifiers `\d{1,3}` / `\d{1,10}`                   | `execute.schema.ts`   |
+| V8  | Injection regex homoglyph bypass | `confusables@1.1.1` normalizes to ASCII before pattern matching           | `llm/llm.guards.ts`   |
+
+### Rationale
+
+- **V2 — `trust proxy: 1`:** Render/Railway add exactly one proxy hop. `trust proxy: true` (trust all) is dangerous — an attacker can prepend fake IPs in `X-Forwarded-For`. The integer `1` trusts only the immediately preceding hop.
+- **V4 — Production-only null-origin block:** Dev workflows (curl, Postman) send no `Origin` header. The `NODE_ENV` gate preserves DX while closing the sandboxed iframe vector.
+- **V7 — Bounded quantifiers:** `.max(40)` is the first defense (Zod rejects before regex). Bounded quantifiers guarantee linear-time execution.
+- **V8 — `confusables` over hand-rolled mapping:** The Unicode Consortium's confusables dataset (UAX #39) has ~9K entries. A hand-rolled map would cover only a few dozen characters and drift out of date.
+
+### Deferred Items
+
+| ID  | Vulnerability                      | Reason Deferred                                          |
+| --- | ---------------------------------- | -------------------------------------------------------- |
+| V1  | Access code in query string        | Requires auth header migration across frontend + backend |
+| V3  | 10MB body parser on GET-only API   | Low risk — no POST routes exist                          |
+| V5  | Access code logged in request URL  | Coupled to V1                                            |
+| V6  | Error handler leaks `instance` URL | Coupled to V1                                            |
+
+### Consequences
+
+- `confusables@1.1.1` added as a server dependency (~150KB).
+- Rate limiter now correctly isolates per-user buckets in production.
+- Legitimate searches from sandboxed iframes are blocked in production (acceptable — not a supported use case).
+- `AGENTS.md` updated with explicit commit body format rules.
+
+---
+
 _More ADRs will be added during development as decisions emerge._

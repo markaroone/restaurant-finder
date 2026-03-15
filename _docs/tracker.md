@@ -2,7 +2,7 @@
 
 **Status:** IN PROGRESS
 **Current Phase:** Phase 5: Deployment & Documentation
-**Next Immediate Step:** Commit `fix/ambiguous-location` branch to `main`, then begin Phase 5 (deploy + README)
+**Next Immediate Step:** Begin Phase 5 (deploy + README)
 **Last Updated:** 2026-03-15
 
 ## The "Next Immediate Step"
@@ -292,6 +292,20 @@ Two-layer defense against Foursquare 400 "Boundaries could not be determined" er
 
 ---
 
+### Phase 4.19: Security Hardening (SAST)
+
+Conducted static application security testing (SAST) review. Fixed 4 of 8 identified vulnerabilities; remaining 4 (V1, V3, V5, V6) are deferred.
+
+- [x] V2: `trust proxy` — set `app.set('trust proxy', 1)` in `registerGlobalMiddleware` so `req.ip` reflects the real client IP behind Render/Railway reverse proxies. Fixes rate limiter bucketing and geoip resolution.
+- [x] V4: CORS null-origin bypass — block requests with no `Origin` header in production. Allows curl/Postman in development.
+- [x] V7: ReDoS in `ll` regex — added `.max(40)` pre-check and bounded quantifiers (`\d{1,3}`, `\d{1,10}`) to eliminate catastrophic backtracking.
+- [x] V8: Unicode homoglyph injection bypass — installed `confusables@1.1.1` to normalize Unicode confusables (Cyrillic і → i) before running injection detection regex.
+- [x] Updated `AGENTS.md` with explicit commit body format rules.
+- [x] 49/49 tests passing; `bun run check` ✅
+  - ADR-020: Security Hardening (SAST Fixes)
+
+---
+
 ### Phase 5: Deployment & Documentation
 
 - [ ] Deploy backend to Render/Railway (root: `/server`)
@@ -325,3 +339,4 @@ Two-layer defense against Foursquare 400 "Boundaries could not be determined" er
 | 2026-03-15 | Phase 4.16 Exponential Backoff: full jitter, `isRetryableError`, timeout budget rebalanced 15s→8s/call. ADR-018.                                  |
 | 2026-03-15 | Phase 4.17 Test Coverage: expanded execute tests (49/49 passing).                                                                                 |
 | 2026-03-15 | Phase 4.18 Ambiguous Location Fix: LLM district expansion rule (Layer 1) + `AmbiguousLocationError` + "Did you mean?" chip UI (Layer 2). ADR-019. |
+| 2026-03-15 | Phase 4.19 Security Hardening: trust proxy, CORS null-origin block, ReDoS regex fix, Unicode confusables normalization. ADR-020. |
