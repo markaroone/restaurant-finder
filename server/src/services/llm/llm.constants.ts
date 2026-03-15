@@ -123,4 +123,24 @@ Output: {"is_food_related":true,"query":"ramen","near":"Tokyo, Japan","price":nu
 
 export const MODEL = 'gemini-2.5-flash';
 export const MAX_ATTEMPTS = 2;
-export const LLM_TIMEOUT_MS = 15_000; // 15s — generous for Flash (typical: 200-800ms)
+
+/**
+ * Per-call timeout budget.
+ *
+ * Reduced from 15s to 8s to accommodate exponential backoff delays within
+ * the 20s Express server timeout:
+ *   Attempt 1: up to 8s + up to ~200ms jitter
+ *   Attempt 2: up to 8s (last attempt — no delay after)
+ *   Foursquare + middleware safety margin: ~2s
+ *   Total worst case: ~18.2s ← fits inside 20s ✅
+ *
+ * The heuristic fallback acts as attempt 3 with zero latency budget.
+ */
+export const LLM_TIMEOUT_MS = 8_000; // 8s per attempt (was 15s)
+
+/**
+ * Base delay for exponential backoff between LLM retry attempts.
+ * Full jitter is applied: actual delay is random in [0, BASE * 2^(attempt-1)].
+ * With 2 attempts max, only one inter-attempt delay ever fires (max ~200ms).
+ */
+export const BASE_DELAY_MS = 200;

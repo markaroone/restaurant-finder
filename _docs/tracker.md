@@ -247,6 +247,19 @@ Added graceful degradation when Gemini is unavailable and restructured services 
 
 ---
 
+### Phase 4.16: Exponential Backoff with Full Jitter
+
+Upgraded the LLM retry logic from immediate retries to proper exponential backoff.
+
+- [x] Add `BASE_DELAY_MS = 200` constant to `llm.constants.ts`
+- [x] Add `getBackoffDelay(attempt)` — full jitter: random in `[0, BASE * 2^(attempt-1)]`
+- [x] Add `isRetryableError(error)` — skips delay for `AbortError` and non-retryable HTTP codes (400/401/403/404/422)
+- [x] Reduce `LLM_TIMEOUT_MS` from 15s to 8s to fit 2 attempts + jitter inside the 20s Express budget
+- [x] Wire delay between attempts (never after the last) in the `parseMessage` retry loop
+  - ADR-018: Exponential Backoff Timeout Budget
+
+---
+
 ### Phase 5: Deployment & Documentation
 
 - [ ] Deploy backend to Render/Railway (root: `/server`)
@@ -277,3 +290,4 @@ Added graceful degradation when Gemini is unavailable and restructured services 
 | 2026-03-15 | Phase 4.13 UI Transparency: Search parameters pill badges and search bar clear button.                                  |
 | 2026-03-15 | Phase 4.14 Few-Shot Prompting: 6 examples in SYSTEM_INSTRUCTION for edge case accuracy. ADR-016.                        |
 | 2026-03-15 | Phase 4.15 NER Fallback: heuristic parser + service folder refactoring (`llm/`, `foursquare/`). ADR-017.                |
+| 2026-03-15 | Phase 4.16 Exponential Backoff: full jitter, `isRetryableError`, timeout budget rebalanced 15s→8s/call. ADR-018.        |

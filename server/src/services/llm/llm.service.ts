@@ -8,6 +8,7 @@ import { searchParamsSchema } from '@/modules/execute/execute.schema';
 import { SearchParams } from '@/modules/execute/execute.types';
 
 import {
+  BASE_DELAY_MS,
   LLM_TIMEOUT_MS,
   MAX_ATTEMPTS,
   MODEL,
@@ -17,6 +18,49 @@ import {
 import { guardOutput } from './llm.guards';
 
 const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+
+// ─── Backoff Helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Returns a random delay between 0 and BASE_DELAY_MS * 2^(attempt-1).
+ * "Full jitter" per AWS recommendation — spreads concurrent retries across
+ * time to prevent the thundering herd problem.
+ *
+ * With MAX_ATTEMPTS=2 only one delay ever fires (after attempt 1), capped at
+ * ~200ms. Well within the timeout budget:
+ *   Attempt 1 up to 8s + up to 200ms jitter + Attempt 2 up to 8s ≈ 16.2s max.
+ */
+const getBackoffDelay = (attempt: number): number => {
+  const exponentialMax = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+  return Math.random() * exponentialMax; // Full jitter: random in [0, max]
+};
+
+// Gemini SDK surfaces HTTP errors; check for non-retryable status codes
+const NON_RETRYABLE_STATUSES = new Set([400, 401, 403, 404, 422]);
+
+/**
+ * Returns true only for errors that are likely to resolve on retry.
+ * Avoids wasting the remaining timeout budget on errors that won't improve:
+ *   - Abort (timeout) — retrying immediately won't help if the API is slow
+ *   - Network errors  — may be transient; worth one retry
+ *   - Gemini SDK API errors with retryable status codes (429, 5xx)
+ *   - Non-retryable: 400, 401, 403, 404, 422 (structural/auth — won't improve)
+ */
+const isRetryableError = (error: unknown): boolean => {
+  // AbortError from our AbortController timeout
+  if (error instanceof Error && error.name === 'AbortError') return false;
+
+  if (
+    error instanceof Error &&
+    'status' in error &&
+    typeof (error as { status: unknown }).status === 'number'
+  ) {
+    return !NON_RETRYABLE_STATUSES.has((error as { status: number }).status);
+  }
+
+  // Default: treat as retryable (network errors, unknown SDK errors)
+  return true;
+};
 
 // ─── Validation Stage 1: Input Sanitization ──────────────────────────────────
 
@@ -176,7 +220,19 @@ export const parseMessage = async (message: string): Promise<SearchParams> => {
       logger.error({ error, attempt }, '❌ LLM call failed');
       lastError = error;
 
-      if (attempt === MAX_ATTEMPTS) break;
+      const isLastAttempt = attempt === MAX_ATTEMPTS;
+      if (isLastAttempt) break;
+
+      // Only delay if this error type is likely to improve with a retry.
+      // Non-retryable errors (e.g. AbortError after timeout) get no delay.
+      if (isRetryableError(error)) {
+        const delayMs = getBackoffDelay(attempt);
+        logger.warn(
+          { attempt, delayMs: Math.round(delayMs) },
+          '⏳ Retrying with exponential backoff...',
+        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
     }
   }
 
