@@ -207,6 +207,31 @@ Implemented three remaining security features from the guardrails research audit
 
 ---
 
+### Phase 4.13: AI Transparency UI
+
+Implemented the "What the AI Understood" transparency feature from the research audit.
+
+- [x] T1: Create `SearchParamsPills` component to render AI-extracted parameters (Cuisine, Location, Price, Open Now)
+- [x] T2: Integrate pills into `SearchContent` immediately below the `SearchBar`
+- [x] T3: Add a clear (`X`) button inside the `SearchBar` input for better UX
+
+---
+
+### Phase 4.14: Few-Shot Prompting
+
+Upgraded the LLM system prompt from zero-shot to few-shot, improving edge case accuracy.
+
+- [x] Appended 6-example few-shot block to `SYSTEM_INSTRUCTION` in `llm.service.ts`
+  - Price negation: `"not too expensive"` → `price: 2`
+  - Open-now slang: `"still serving"` → `open_now: true`
+  - Abbreviation expansion: `"DTLA"` → `"Downtown Los Angeles, CA"`
+  - Emoji translation: `"🍕"` → `"pizza"`
+  - Non-food rejection: `"find me a hospital"` → `is_food_related: false`
+  - Multilingual: `"拉麺 東京"` → `query: "ramen", near: "Tokyo, Japan"`
+  - ADR-016: Few-Shot Prompting for Edge Case Accuracy
+
+---
+
 ### Phase 5: Deployment & Documentation
 
 - [ ] Deploy backend to Render/Railway (root: `/server`)
@@ -218,19 +243,21 @@ Implemented three remaining security features from the guardrails research audit
 
 ## Changelog
 
-| Date       | Change                                                                                                        |
-| :--------- | :------------------------------------------------------------------------------------------------------------ |
-| 2026-03-12 | Initial SDD generation. Full planning phase complete.                                                         |
-| 2026-03-12 | Phase 1 complete. Server & client scaffolds passing all checks. Git initialized. `docs/` renamed to `_docs/`. |
-| 2026-03-13 | Phase 2 Backend Core merged to `main`.                                                                        |
-| 2026-03-13 | Phase 3 Frontend Core merged to `main`.                                                                       |
-| 2026-03-13 | Phase 3.5 Hardening: geolocation fallback, geoip-lite, three-tier error display, cursor:pointer, ENV.API_CODE |
-| 2026-03-14 | Phase 4 Testing: 38 backend tests (schema, service, integration), 72 assertions.                              |
-| 2026-03-14 | Phase 4.5 Security: access code env var, per-route rate limiting, conditional error meta. ADR-010, ADR-011.   |
-| 2026-03-14 | Phase 4.6 Relevance: IP geo guard, prompt fixes (limit, negation, non-Latin). ADR-012.                        |
-| 2026-03-14 | Phase 4.7 Resiliency: Gemini 15s abort, Express 20s timeout, GatewayTimeoutError. ADR-013.                    |
-| 2026-03-14 | Phase 4.8 Frontend State: query key geolocation fix, purified API function, staleTime docs.                   |
-| 2026-03-14 | Phase 4.9 UI Polish & Client Sorting: dynamic sorting dropdown (Relevance/Distance) and reactivity fixes.     |
-| 2026-03-15 | Phase 4.10 UX Audit: 8 a11y fixes (ARIA, focus, touch targets) and dynamic time-based quick search pills.     |
-| 2026-03-15 | Phase 4.11 NLP Fuzzing: Unicode sanitizer, prompt hardening (emoji, location i18n, slang, contradictions). ADR-014. |
+| Date       | Change                                                                                                                  |
+| :--------- | :---------------------------------------------------------------------------------------------------------------------- |
+| 2026-03-12 | Initial SDD generation. Full planning phase complete.                                                                   |
+| 2026-03-12 | Phase 1 complete. Server & client scaffolds passing all checks. Git initialized. `docs/` renamed to `_docs/`.           |
+| 2026-03-13 | Phase 2 Backend Core merged to `main`.                                                                                  |
+| 2026-03-13 | Phase 3 Frontend Core merged to `main`.                                                                                 |
+| 2026-03-13 | Phase 3.5 Hardening: geolocation fallback, geoip-lite, three-tier error display, cursor:pointer, ENV.API_CODE           |
+| 2026-03-14 | Phase 4 Testing: 38 backend tests (schema, service, integration), 72 assertions.                                        |
+| 2026-03-14 | Phase 4.5 Security: access code env var, per-route rate limiting, conditional error meta. ADR-010, ADR-011.             |
+| 2026-03-14 | Phase 4.6 Relevance: IP geo guard, prompt fixes (limit, negation, non-Latin). ADR-012.                                  |
+| 2026-03-14 | Phase 4.7 Resiliency: Gemini 15s abort, Express 20s timeout, GatewayTimeoutError. ADR-013.                              |
+| 2026-03-14 | Phase 4.8 Frontend State: query key geolocation fix, purified API function, staleTime docs.                             |
+| 2026-03-14 | Phase 4.9 UI Polish & Client Sorting: dynamic sorting dropdown (Relevance/Distance) and reactivity fixes.               |
+| 2026-03-15 | Phase 4.10 UX Audit: 8 a11y fixes (ARIA, focus, touch targets) and dynamic time-based quick search pills.               |
+| 2026-03-15 | Phase 4.11 NLP Fuzzing: Unicode sanitizer, prompt hardening (emoji, location i18n, slang, contradictions). ADR-014.     |
 | 2026-03-15 | Phase 4.12 Guardrails: injection detection, output filtering, token monitoring. Pipeline → five-layer defense. ADR-015. |
+| 2026-03-15 | Phase 4.13 UI Transparency: Search parameters pill badges and search bar clear button.                                  |
+| 2026-03-15 | Phase 4.14 Few-Shot Prompting: 6 examples in SYSTEM_INSTRUCTION for edge case accuracy. ADR-016.                        |

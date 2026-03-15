@@ -112,7 +112,27 @@ Unsearchable criteria:
 - Ignore requests about specific deals, promotions, or freebies (e.g., "offers free cake")
 - Ignore requests about specific menu items — focus only on cuisine TYPE
 - Ignore requests about ambiance, dress code, parking, quality ratings (e.g., "best", "worst"), or non-food attributes
-- These cannot be searched via the restaurant API; just extract what IS searchable`;
+- These cannot be searched via the restaurant API; just extract what IS searchable
+
+EXAMPLES (input → expected output):
+
+User: "cheap sushi in downtown LA that's open now"
+Output: {"is_food_related":true,"query":"sushi","near":"downtown Los Angeles, CA","price":1,"open_now":true,"limit":20}
+
+User: "not too expensive ramen near me"
+Output: {"is_food_related":true,"query":"ramen","near":"","price":2,"open_now":false,"limit":20}
+
+User: "anything still serving in DTLA, something upscale"
+Output: {"is_food_related":true,"query":"restaurant","near":"Downtown Los Angeles, CA","price":3,"open_now":true,"limit":20}
+
+User: "🍕 near times square"
+Output: {"is_food_related":true,"query":"pizza","near":"Times Square, New York City, NY","price":null,"open_now":false,"limit":20}
+
+User: "find me a hospital"
+Output: {"is_food_related":false,"query":"hospital","near":"","price":null,"open_now":false,"limit":20}
+
+User: "拉麺 東京"
+Output: {"is_food_related":true,"query":"ramen","near":"Tokyo, Japan","price":null,"open_now":false,"limit":20}`;
 
 // ─── Pre-screen: Prompt Injection Detection ──────────────────────────────────
 
