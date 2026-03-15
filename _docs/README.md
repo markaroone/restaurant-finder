@@ -38,13 +38,14 @@ flowchart LR
 
 ### Parsed Search Parameters (LLM Output → Zod Validated)
 
-| Field      | Type             | Required | Description                                           |
-| ---------- | ---------------- | -------- | ----------------------------------------------------- |
-| `query`    | `string`         | Yes      | Cuisine or restaurant type (e.g., "sushi", "Italian") |
-| `near`     | `string`         | Yes      | Location to search (e.g., "downtown Los Angeles")     |
-| `price`    | `number \| null` | No       | Price level 1-4 (1=cheap, 4=very expensive)           |
-| `open_now` | `boolean`        | No       | Whether to filter for currently open places           |
-| `limit`    | `number`         | No       | Number of results (default: 10, max: 50)              |
+| Field             | Type             | Required | Description                                                                                                    |
+| ----------------- | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
+| `query`           | `string`         | Yes      | Cuisine or restaurant type (e.g., "sushi", "Italian")                                                          |
+| `near`            | `string`         | No       | Location to search (e.g., "downtown Los Angeles"). Defaults to `''` — triggers browser/IP geolocation fallback |
+| `price`           | `number \| null` | No       | Price level 1-4 (1=cheap, 4=very expensive)                                                                    |
+| `open_now`        | `boolean`        | No       | Whether to filter for currently open places                                                                    |
+| `limit`           | `number`         | No       | Number of results (default: 20, max: 50)                                                                       |
+| `is_food_related` | `boolean`        | No       | Whether the query is food-related (LLM guardrail)                                                              |
 
 ### Transformed Restaurant Response (What we return to the client)
 
@@ -68,44 +69,54 @@ flowchart LR
 
 #### Query Parameters
 
-| Param     | Type     | Required | Description                                 |
-| --------- | -------- | -------- | ------------------------------------------- |
-| `message` | `string` | Yes      | Natural language search query (1-500 chars) |
-| `code`    | `string` | Yes      | Must be exactly `pioneerdevai`              |
+| Param     | Type     | Required | Description                                                                                                                   |
+| --------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `message` | `string` | Yes      | Natural language search query (2-500 chars)                                                                                   |
+| `code`    | `string` | Yes      | Must match the configured access code (`ACCESS_CODE` env var)                                                                 |
+| `ll`      | `string` | No       | Lat,lng from browser geolocation (e.g., `14.55,121.02`) — used as location fallback when the LLM can't extract a `near` value |
 
 #### Success Response (200)
 
 ```json
 {
-  "results": [
-    {
-      "id": "4b60ade0f964a52012e529e3",
-      "name": "Sushi Gen",
-      "address": "422 E 2nd St, Los Angeles, CA 90012",
-      "categories": [
-        {
-          "name": "Sushi Restaurant",
-          "icon": "https://ss3.4sqi.net/img/categories_v2/food/sushi_64.png"
-        }
-      ],
-      "price": 2,
-      "rating": null,
-      "distance": 450,
-      "hours": { "openNow": true, "display": "Mon-Sat 11:15 AM-2:00 PM" },
-      "location": { "lat": 34.0483, "lng": -118.239 }
+  "status": "success",
+  "message": "Restaurants found",
+  "data": {
+    "results": [
+      {
+        "id": "4b60ade0f964a52012e529e3",
+        "name": "Sushi Gen",
+        "address": "422 E 2nd St, Los Angeles, CA 90012",
+        "categories": [
+          {
+            "name": "Sushi Restaurant",
+            "icon": "https://ss3.4sqi.net/img/categories_v2/food/sushi_64.png"
+          }
+        ],
+        "price": null,
+        "rating": null,
+        "distance": 450,
+        "hours": null,
+        "location": { "lat": 34.0483, "lng": -118.239 },
+        "link": "/places/4b60ade0f964a52012e529e3"
+      }
+    ],
+    "searchParams": {
+      "query": "sushi",
+      "near": "downtown Los Angeles, CA",
+      "price": 1,
+      "open_now": true,
+      "limit": 20,
+      "is_food_related": true
+    },
+    "meta": {
+      "resultCount": 1,
+      "searchedAt": "2026-03-15T18:00:00Z",
+      "distanceLabel": "away from downtown Los Angeles, CA",
+      "parsedBy": "llm"
     }
-  ],
-  "searchParams": {
-    "query": "sushi",
-    "near": "downtown Los Angeles",
-    "price": null,
-    "open_now": true,
-    "limit": 10
   },
-  "meta": {
-    "resultCount": 8,
-    "searchedAt": "2026-03-12T18:00:00Z"
-  }
+  "meta": { "resultCount": 1 }
 }
 ```
 
@@ -114,24 +125,25 @@ flowchart LR
 
 #### Error Responses
 
-| Status | Code                    | When                                    | Response Body             |
-| ------ | ----------------------- | --------------------------------------- | ------------------------- |
-| `401`  | `UNAUTHORIZED`          | `code` is missing or not `pioneerdevai` | RFC 7807 Problem Document |
-| `400`  | `BAD_REQUEST`           | `message` is empty or too long          | RFC 7807 Problem Document |
-| `422`  | `PARSE_ERROR`           | LLM could not extract valid parameters  | RFC 7807 Problem Document |
-| `502`  | `UPSTREAM_ERROR`        | Gemini or Foursquare API fails          | RFC 7807 Problem Document |
-| `429`  | `TOO_MANY_REQUESTS`     | Rate limit exceeded                     | RFC 7807 Problem Document |
-| `500`  | `INTERNAL_SERVER_ERROR` | Unexpected server error                 | RFC 7807 Problem Document |
+| Status | Code                    | When                                   | Response Body             |
+| ------ | ----------------------- | -------------------------------------- | ------------------------- |
+| `401`  | `UNAUTHORIZED`          | `code` is missing or invalid           | RFC 7807 Problem Document |
+| `400`  | `BAD_REQUEST`           | `message` is empty or too long         | RFC 7807 Problem Document |
+| `422`  | `PARSE_ERROR`           | LLM could not extract valid parameters | RFC 7807 Problem Document |
+| `502`  | `UPSTREAM_ERROR`        | Gemini or Foursquare API fails         | RFC 7807 Problem Document |
+| `429`  | `TOO_MANY_REQUESTS`     | Rate limit exceeded                    | RFC 7807 Problem Document |
+| `500`  | `INTERNAL_SERVER_ERROR` | Unexpected server error                | RFC 7807 Problem Document |
 
 #### Business Rules & Guardrails
 
-1. Validate `code === 'pioneerdevai'` FIRST, before any processing
+1. Validate `code` against the configured access code FIRST, before any processing
 2. Validate `message` is present, non-empty, max 500 chars
 3. LLM output is validated with Zod before querying Foursquare
-4. If LLM returns invalid values (e.g., `price: 5`), retry once, then fail with 422
+4. If LLM returns invalid values (e.g., `price: 5`), retry once with exponential backoff, then fall back to heuristic parser before failing with 422
 5. If Foursquare returns 0 results, return empty `results: []` with 200 (not an error)
-6. Category filtering is handled naturally by the LLM's `query` param (e.g., "sushi", "Italian") rather than the `fsq_category_ids` filter, since the 2025 API uses hex-format category IDs
+6. All Foursquare queries include `fsq_category_ids=4d4b7105d754a06374d81259` (root Food category) to prevent grocery stores, hotels, and landmarks from appearing in results
 7. Transform Foursquare response to strip noisy/irrelevant fields
+8. Non-food queries are rejected early via the `is_food_related` LLM guard before reaching Foursquare
 
 ## Core Business Logic
 
@@ -139,17 +151,23 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    A["User message"] --> B["Build system prompt"]
-    B --> C["Call Gemini 2.5 Flash<br/>with responseJsonSchema"]
+    A["User message"] --> INJ{Injection screen}
+    INJ -->|Blocked| ERR1["Throw BadRequestError 400"]
+    INJ -->|Clean| B["Build system prompt"]
+    B --> C["Call Gemini 2.5 Flash with responseJsonSchema"]
     C --> D["JSON.parse response"]
     D --> E{Zod validation}
     E -->|Valid| F["Return SearchParams"]
     E -->|Invalid| G{Retry count < 2?}
     G -->|Yes| C
-    G -->|No| H["Throw ParseError 422"]
+    G -->|No| H{Gemini available?}
+    H -->|No| HEU["Heuristic fallback parser"]
+    H -->|Yes| PERR["Throw ParseError 422"]
+    HEU --> F
 
     style F fill:#22c55e,color:#fff
-    style H fill:#ef4444,color:#fff
+    style ERR1 fill:#ef4444,color:#fff
+    style PERR fill:#ef4444,color:#fff
 ```
 
 **System prompt strategy:**
@@ -163,11 +181,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["Validated SearchParams"] --> B["Map to Foursquare query params"]
-    B --> C["Add sort=RELEVANCE"]
-    C --> D["Add optional: price, open_now, sort"]
-    D --> E["Request specific fields only"]
-    E --> F["fetch Foursquare API"]
+    A["Validated SearchParams"] --> B["Build Foursquare query params"]
+    B --> C["Add fsq_category_ids=Food root"]
+    C --> D["Add sort=RELEVANCE + fields filter"]
+    D --> E["Add optional: open_now, near/ll"]
+    E --> F["Fetch Foursquare API"]
     F --> G{Response OK?}
     G -->|No| H["Throw UpstreamError 502"]
     G -->|Yes| I["Transform results"]
@@ -179,17 +197,17 @@ flowchart TD
 
 **Parameter mapping:**
 
-| SearchParams field | Foursquare param |
-| ------------------ | ---------------- |
-| `query`            | `query`          |
-| `near`             | `near`           |
-| `open_now`         | `open_now`       |
-| `limit`            | `limit`          |
-| _(always set)_     | `sort=RELEVANCE` |
+| SearchParams field | Foursquare param                                        |
+| ------------------ | ------------------------------------------------------- |
+| `query`            | `query`                                                 |
+| `near`             | `near` (or `ll` if near is empty)                       |
+| `open_now`         | `open_now`                                              |
+| `limit`            | `limit`                                                 |
+| _(always set)_     | `sort=RELEVANCE`                                        |
+| _(always set)_     | `fsq_category_ids=4d4b7105d754a06374d81259` (Food root) |
 
 > [!TIP]
 > **Client-Side Sorting:** While the backend always requests `sort=RELEVANCE` to get the most semantic matches, the frontend implements dynamic client-side sorting, allowing users to re-order the results by **Distance** without making additional API calls or breaking React Query's structural caching.
-
 > [!IMPORTANT]
 > **Foursquare API (2025-06-17 version):**
 >
@@ -198,21 +216,21 @@ flowchart TD
 > - Required header: `X-Places-Api-Version: 2025-06-17`
 > - Category IDs now use hex format (e.g., `4bf58dd8d48988d1d2941735`), not numeric `13065`
 > - Response ID field: `fsq_place_id` (not `fsq_id`)
-> - Free-tier available fields: `fsq_place_id`, `name`, `location`, `categories`, `distance`
-> - Premium fields (`rating`, `price`, `hours`, `geocodes`, `photos`) require paid API credits — return null on free tier
-> - `min_price`/`max_price` query filters are also premium-only
+> - Free-tier available fields: `fsq_place_id`, `name`, `location`, `categories`, `distance`, `link`, `latitude`, `longitude`
+> - Premium fields (`rating`, `price`, `hours`, `photos`) require paid API credits — return null on free tier
+> - `min_price`/`max_price` are available on free tier but skipped since the LLM extracts price intent for frontend display only
 
 ## Validation Schemas (Zod)
 
-| Schema               | Location            | Fields                                                                                                                                                         |
-| -------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `executeQuerySchema` | `execute.schema.ts` | `message: z.string().min(1).max(500)`, `code: z.literal('pioneerdevai')`                                                                                       |
-| `searchParamsSchema` | `execute.schema.ts` | `query: z.string()`, `near: z.string()`, `price: z.number().min(1).max(4).nullable()`, `open_now: z.boolean()`, `limit: z.number().min(1).max(50).default(10)` |
-| `envSchema`          | `config/env.ts`     | `PORT`, `NODE_ENV`, `GEMINI_API_KEY`, `FOURSQUARE_API_KEY`, `ALLOWED_ORIGINS`                                                                                  |
+| Schema               | Location            | Fields                                                                                                                                                                                                     |
+| -------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `executeQuerySchema` | `execute.schema.ts` | `message: z.string().min(2).max(500)`, `code: z.literal(ACCESS_CODE)`, `ll: z.string().max(40).regex(…).optional()`                                                                                        |
+| `searchParamsSchema` | `execute.schema.ts` | `query: z.string()`, `near: z.string().default('')`, `price: z.number().min(1).max(4).nullable()`, `open_now: z.boolean()`, `limit: z.number().min(1).max(50).default(20)`, `is_food_related: z.boolean()` |
+| `envSchema`          | `config/env.ts`     | `PORT`, `NODE_ENV`, `GEMINI_API_KEY`, `FOURSQUARE_API_KEY`, `ALLOWED_ORIGINS`                                                                                                                              |
 
 ## Authentication
 
-We retain the **middleware pattern** from flux-ai-be but replace the logic:
+The `codeGateMiddleware` validates a static access code from `req.query.code` before any request processing. The code is configured via environment variable and enforced at the route level.
 
 ```typescript
 // code-gate.middleware.ts
@@ -222,14 +240,14 @@ export const codeGateMiddleware = (
   next: NextFunction,
 ) => {
   const code = req.query.code;
-  if (code !== 'pioneerdevai') {
+  if (code !== env.ACCESS_CODE) {
     throw new UnauthorizedError('Invalid or missing access code');
   }
   next();
 };
 ```
 
-Applied at route level, same as `authMiddleware` was used in flux-ai-be:
+Applied at route level before the controller:
 
 ```typescript
 router.get('/execute', codeGateMiddleware, executeController.search);
@@ -237,7 +255,7 @@ router.get('/execute', codeGateMiddleware, executeController.search);
 
 ## Error Handling
 
-Same pattern as flux-ai-be: `AppError` base class → subclass per status → centralized `errorHandler` middleware → RFC 7807 Problem Documents.
+`AppError` base class → subclass per status → centralized `errorHandler` middleware → RFC 7807 Problem Documents.
 
 **New error subclass for this project:**
 
@@ -263,42 +281,51 @@ export class UpstreamError extends AppError {
 ```text
 server/
 ├── src/
-│   ├── app.ts                              # Express app + middleware
-│   ├── index.ts                            # Server entry point
+│   ├── app.ts                              # Express app factory
+│   ├── index.ts                            # Server entry point + trust proxy
 │   ├── config/
 │   │   └── env.ts                          # Zod env validation
 │   ├── common/
 │   │   ├── constants/
 │   │   │   └── app.constants.ts
 │   │   ├── middleware/
-│   │   │   ├── index.ts                    # Global middleware registration
+│   │   │   ├── index.ts                    # Global middleware registration (trust proxy, helmet, CORS, rate limit)
+│   │   │   ├── cors.ts                     # CORS config (null-origin blocked in prod)
 │   │   │   ├── error-handler.ts            # RFC 7807 error handler
-│   │   │   └── code-gate.middleware.ts      # code=pioneerdevai validator
+│   │   │   ├── validate-request.ts         # Zod request validation middleware
+│   │   │   └── code-gate.middleware.ts     # access code validator
 │   │   ├── types/
 │   │   │   └── problem-document.ts
 │   │   └── utils/
 │   │       ├── app-error.ts                # Base error class
-│   │       ├── api-errors.ts               # Error subclasses
+│   │       ├── api-errors.ts               # Error subclasses (incl. AmbiguousLocationError)
 │   │       └── logger.ts                   # Pino logger
 │   ├── modules/
 │   │   ├── health/
-│   │   │   └── health.routes.ts
+│   │   │   └── health.route.ts
 │   │   └── execute/
 │   │       ├── execute.route.ts
 │   │       ├── execute.controller.ts
-│   │       ├── execute.service.ts          # Orchestrator
-│   │       ├── execute.schema.ts           # Zod schemas
+│   │       ├── execute.service.ts          # Main search orchestrator
+│   │       ├── execute.schema.ts           # Zod schemas (query + LLM output)
 │   │       ├── execute.types.ts
 │   │       └── __tests__/
 │   │           ├── execute.schema.test.ts
 │   │           └── execute.service.test.ts
 │   └── services/
-│       ├── llm.service.ts                  # Gemini wrapper
-│       └── foursquare.service.ts           # Foursquare wrapper
+│       ├── llm/
+│       │   ├── llm.service.ts              # Gemini wrapper (parseMessage)
+│       │   ├── llm.constants.ts            # SYSTEM_INSTRUCTION prompt
+│       │   ├── llm.guards.ts               # Injection detection + confusables normalization
+│       │   └── index.ts
+│       └── foursquare/
+│           ├── foursquare.service.ts       # Foursquare Places API wrapper
+│           ├── foursquare.types.ts
+│           └── index.ts
 ├── .env.example
 ├── package.json
 ├── tsconfig.json
-└── README.md
+└── AGENTS.md
 ```
 
 ### Client
@@ -308,17 +335,19 @@ client/
 ├── src/
 │   ├── main.tsx
 │   ├── App.tsx                             # Main app (no router)
-│   ├── index.css                           # Design tokens
+│   ├── index.css                           # Design tokens + CSS variables
 │   ├── api/
 │   │   ├── api-client.ts                   # ky instance
-│   │   └── search-restaurants.ts           # API call (withApiError wrapped)
+│   │   └── search-restaurants.ts           # API call wrapper
 │   ├── components/
-│   │   ├── search-bar.tsx
-│   │   ├── restaurant-card.tsx
-│   │   ├── restaurant-list.tsx
-│   │   ├── loading-skeleton.tsx
-│   │   ├── error-display.tsx
-│   │   └── empty-state.tsx
+│   │   ├── search-bar.tsx                  # Search input + geolocation button
+│   │   ├── restaurant-card.tsx             # Individual result card
+│   │   ├── restaurant-list.tsx             # Results list + sort control
+│   │   ├── search-content.tsx              # Layout + results orchestration
+│   │   ├── suggestion-chips.tsx            # Dynamic search suggestion pills
+│   │   ├── loading-skeleton.tsx            # Skeleton cards while fetching
+│   │   ├── error-display.tsx               # Error UI (incl. AMBIGUOUS_LOCATION chip)
+│   │   └── empty-state.tsx                 # Initial/empty state UI
 │   ├── hooks/
 │   │   └── use-search-restaurants.ts       # TanStack Query hook
 │   ├── types/
@@ -326,6 +355,7 @@ client/
 │   └── utils/
 │       ├── api-error.ts                    # ApiError class
 │       ├── with-api-error.ts               # HOF wrapper
+│       ├── sort-results.ts                 # Client-side sort utility
 │       └── logger.ts
 ├── package.json
 ├── vite.config.ts
@@ -352,7 +382,7 @@ The frontend's `vite.config.ts` will proxy `/api/*` to the backend URL in dev, a
 **Backend tests (Bun test + Supertest):**
 
 1. **Schema validation tests** (`execute.schema.test.ts`):
-   - `code` must be exactly `pioneerdevai`
+   - `code` must match the configured access code
    - `message` must be present, 1-500 chars
    - Parsed search params: `price` must be 1-4, `limit` must be 1-50
 
@@ -363,9 +393,9 @@ The frontend's `vite.config.ts` will proxy `/api/*` to the backend URL in dev, a
    - Test error propagation (Gemini down, Foursquare down)
 
 3. **Integration test** (with Supertest):
-   - `GET /api/execute?code=wrong` → 401
-   - `GET /api/execute?code=pioneerdevai` (no message) → 400
-   - `GET /api/execute?code=pioneerdevai&message=sushi+in+LA` → 200 (with mocked services)
+   - `GET /api/execute?code=wrong-code` → 401
+   - `GET /api/execute?code=<valid-code>` (no message) → 400
+   - `GET /api/execute?code=<valid-code>&message=sushi+in+LA` → 200 (with mocked services)
 
 ```bash
 # Run all server tests

@@ -17,7 +17,7 @@ Restaurant Finder eliminates the friction between how users **think** and how se
 | Term                  | Definition                                                                                              |
 | --------------------- | ------------------------------------------------------------------------------------------------------- |
 | **Message**           | The user's free-form text input (e.g., "cheap sushi in LA open now")                                    |
-| **Code**              | A static access code (`pioneerdevai`) required to authenticate API requests                             |
+| **Code**              | A static access code required to authenticate every API request (configured via environment variable)   |
 | **Parsed Parameters** | The structured JSON object extracted from the user's message by the LLM                                 |
 | **LLM**               | Large Language Model — the AI service (Google Gemini) that parses natural language into structured data |
 | **Foursquare**        | Third-party Places API used to search for real restaurant data                                          |
@@ -43,12 +43,10 @@ Restaurant Finder eliminates the friction between how users **think** and how se
 - **What's shown per restaurant:**
   - Name
   - Address (formatted)
-  - Category / cuisine type
-  - Distance from search center
-  - Rating (if available from Foursquare free tier)
-- **Sorting Options:** Users can change the default sort order from Relevance (default AI ranking) to Distance via a dropdown menu.
-  - Distance from search center
-  - Rating (if available from Foursquare free tier)
+  - Category / cuisine type with icon
+  - Distance from search area (labelled contextually: "away from you", "away from Downtown LA", etc.)
+  - Foursquare link
+- **Sorting Options:** Users can change the default sort order from Relevance to Distance via a dropdown menu, sorted client-side without additional API calls.
 
 ### 4. Loading & Error States
 
@@ -57,31 +55,44 @@ Restaurant Finder eliminates the friction between how users **think** and how se
 - **Errors:** Friendly error messages (e.g., "No restaurants found matching your search", "Something went wrong — please try again")
 - **Empty state:** Helpful prompt when no query has been made yet
 
-### 5. Backend API Endpoint
+### 5. Browser Geolocation Support
+
+- **What:** The browser can share the user's current coordinates to bias results toward their real location
+- **How it works:** The frontend prompts for geolocation permission → sends `ll=lat,lng` as a query param → backend uses it as a fallback when no city/area is mentioned in the message
+- **Example:** User types "coffee shop near me" while in Manila → results are biased toward Manila
+
+### 6. Heuristic Fallback Parser
+
+- **What:** A regex-based fallback parser that runs if Gemini is unavailable
+- **How it works:** Simple keyword extraction for cuisine, location, price keywords — ensures the app keeps working even during LLM outages
+
+### 7. Backend API Endpoint
 
 - **What:** A public GET endpoint that returns JSON results directly
-- **Route:** `GET /api/execute?message=<query>&code=pioneerdevai`
+- **Route:** `GET /api/execute?message=<query>&code=<access-code>&ll=<lat,lng>`
 - **Who uses it:** Both the frontend UI and external testers (evaluators)
 
 ## Key Mechanics
 
 ### Search Flow
 
-| Step | What Happens                                           | Where                    |
-| ---- | ------------------------------------------------------ | ------------------------ |
-| 1    | User types message                                     | Frontend                 |
-| 2    | Frontend calls `GET /api/execute?message=...&code=...` | Frontend → Backend       |
-| 3    | Backend validates `code`                               | Backend (middleware)     |
-| 4    | Backend sends message to Gemini for parsing            | Backend → Gemini API     |
-| 5    | Backend validates parsed parameters (Zod)              | Backend                  |
-| 6    | Backend queries Foursquare with structured params      | Backend → Foursquare API |
-| 7    | Backend transforms and filters raw results             | Backend                  |
-| 8    | Clean JSON returned to frontend                        | Backend → Frontend       |
-| 9    | Frontend renders restaurant cards                      | Frontend                 |
+| Step | What Happens                                                    | Where                    |
+| ---- | --------------------------------------------------------------- | ------------------------ |
+| 1    | User types message                                              | Frontend                 |
+| 2    | Frontend calls `GET /api/execute?message=...&code=...&ll=...`   | Frontend → Backend       |
+| 3    | Backend validates `code`                                        | Backend (middleware)     |
+| 4    | Backend screens message for prompt injection                    | Backend (LLM guards)     |
+| 5    | Backend sends message to Gemini for structured parsing          | Backend → Gemini API     |
+| 6    | If Gemini fails, heuristic fallback parser runs                 | Backend                  |
+| 7    | Backend validates parsed parameters (Zod)                       | Backend                  |
+| 8    | Backend queries Foursquare with structured params + Food filter | Backend → Foursquare API |
+| 9    | Backend transforms and filters raw results                      | Backend                  |
+| 10   | Clean JSON returned to frontend                                 | Backend → Frontend       |
+| 11   | Frontend renders restaurant cards                               | Frontend                 |
 
 ### Authentication
 
-This app uses a **static code gate** — not user-based auth. The code `pioneerdevai` must be passed with every API request. If invalid or missing, the request is rejected with `401 Unauthorized`.
+This app uses a **static code gate** — not user-based auth. A static access code must be passed with every API request via the `code` query parameter. If invalid or missing, the request is rejected with `401 Unauthorized`.
 
 ## Connections to Other Modules
 
@@ -96,22 +107,27 @@ This app uses a **static code gate** — not user-based auth. The code `pioneerd
 
 - ✅ Natural language text input
 - ✅ LLM-powered parameter extraction (Gemini 2.5 Flash)
-- ✅ Foursquare API integration
-- ✅ Restaurant results display (cards)
+- ✅ Foursquare API integration (2025-06-17, Food category filter)
+- ✅ Restaurant results display (cards with distance label)
 - ✅ Loading, error, and empty states
 - ✅ `GET /api/execute` endpoint with code validation
-- ✅ Input validation (message + code)
-- ✅ Clean JSON response format
+- ✅ `ll` query param for browser geolocation fallback
+- ✅ Ambiguous location detection with geoip suggestion
+- ✅ Heuristic fallback parser (LLM outage resilience)
+- ✅ Prompt injection detection and Unicode confusable normalization
+- ✅ Input validation (message + code) and rate limiting
+- ✅ Clean JSON response format (RFC 7807 errors)
 - ✅ Automated tests (validation, parsing, error handling)
+- ✅ Client-side sorting by relevance / distance
+- ✅ Dynamic search suggestion chips
+- ✅ Micro-animations and transitions
 - ✅ README with setup/deploy instructions
-- ✅ Deployed live URL
+- ⬜ Deployed live URL
 
 ### 🧊 Post-MVP (Improvements to explain in interview)
 
 - 🧊 Map view showing restaurant locations — _High Priority_
-- 🧊 Smooth micro-animations and transitions — _High Priority_
 - 🧊 Dark mode toggle — _Medium Priority_
-- 🧊 Non-LLM fallback parser for reliability — _Medium Priority_
 - 🧊 Response caching (same query = instant) — _Medium Priority_
 - 🧊 Search history (localStorage) — _Low Priority_
 - 🧊 Database for query logging/analytics — _Low Priority_
