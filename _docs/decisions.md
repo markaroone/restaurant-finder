@@ -768,4 +768,64 @@ A `parsedBy: 'llm' | 'heuristic'` field is included in `ExecuteResponse.meta` so
 
 ---
 
+## ADR-018: Exponential Backoff with Full Jitter for LLM Retries
+
+**Status:** Accepted
+**Date:** 2026-03-15
+
+### Context
+
+The existing retry loop in `parseMessage` retried the Gemini call immediately on failure with no delay. This creates a thundering herd risk: if 100 users simultaneously hit a rate-limited Gemini endpoint, all of them retry instantly, making the rate limit worse. Adding exponential backoff required re-examining the entire timeout budget chain.
+
+### Decision
+
+Implement **exponential backoff with full jitter** between LLM retry attempts, and rebalance the per-call timeout from 15s to 8s to fit the budget.
+
+**Timeout budget chain (updated):**
+
+```text
+Express server timeout:          20,000ms
+  Attempt 1 LLM:          ≤ 8,000ms
+  Backoff jitter (max):   ≤   200ms  (only fires between attempt 1 and 2)
+  Attempt 2 LLM:          ≤ 8,000ms
+  Foursquare + middleware: ≤ 2,000ms
+  Total worst case:        ≈ 18,200ms  ← fits inside 20s ✅
+```
+
+**Backoff formula (full jitter per AWS recommendation):**
+
+```typescript
+const getBackoffDelay = (attempt: number): number => {
+  const exponentialMax = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+  return Math.random() * exponentialMax; // random in [0, max]
+};
+```
+
+With `BASE_DELAY_MS = 200` and `MAX_ATTEMPTS = 2`, only one inter-attempt delay ever fires (after attempt 1), with a max of ~200ms.
+
+**Error classification (`isRetryableError`):**
+
+| Error type                    | Retryable?  | Rationale                                   |
+| ----------------------------- | ----------- | ------------------------------------------- |
+| `AbortError` (our 8s timeout) | ❌ No delay | API is slow; delaying doesn't help          |
+| HTTP 400/401/403/404/422      | ❌ No delay | Structural errors; won't improve with retry |
+| HTTP 429/500/502/503/504      | ✅ Delay    | Rate limit or transient; backoff may help   |
+| Network/unknown errors        | ✅ Delay    | May be transient                            |
+
+The heuristic fallback (`parseMessageHeuristic`) acts as the effective **attempt 3** with zero latency cost — it runs only when `parseMessage` throws `UpstreamError` after all retries.
+
+### Rationale
+
+- **Per-call timeout reduced 15s → 8s** — necessary to fit two attempts within the Express budget. Gemini Flash typically responds in 200–800ms; 8s is still extremely generous.
+- **Full jitter over "equal jitter"** — AWS research shows full jitter produces the best trade-off between latency and load distribution. `Math.random() * max` is a one-liner.
+- **No delay on `AbortError`** — if attempt 1 timed out at 8s, immediately spending another 8s on attempt 2 is necessary to even give it a chance. A jitter delay here would just burn budget.
+- **`MAX_ATTEMPTS` kept at 2** — the heuristic fallback provides a better "third path" than a third Gemini call under load.
+
+### Consequences
+
+- LLM calls that exceed 8s now abort earlier than before (was 15s). Gemini Flash rarely takes >2s; this is an acceptable tradeoff.
+- `BASE_DELAY_MS = 200` is intentionally conservative — the max possible inter-attempt delay is ~200ms, which is negligible for users.
+
+---
+
 _More ADRs will be added during development as decisions emerge._
