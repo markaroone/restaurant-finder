@@ -2,6 +2,7 @@ import {
   type ChangeEvent,
   type ReactElement,
   useCallback,
+  useEffect,
   useState,
 } from 'react';
 
@@ -9,7 +10,7 @@ import { Search, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useSearchActions } from '@/stores/search-store';
+import { useSearchActions, useSearchMessage } from '@/stores/search-store';
 import { cn } from '@/utils/cn';
 import { getQuickSearches } from '@/utils/quick-searches';
 
@@ -31,6 +32,19 @@ export const SearchBar = ({
   const [value, setValue] = useState('');
   const [quickSearches] = useState(() => getQuickSearches());
   const { search } = useSearchActions();
+  const searchMessage = useSearchMessage();
+
+  /**
+   * Sync local input value when the store message changes externally
+   * (e.g. from the "Did you mean?" chip in ErrorDisplay).
+   */
+  useEffect(() => {
+    if (searchMessage && searchMessage !== value) {
+      setValue(searchMessage);
+    }
+    // Only react to store changes, not local typing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchMessage]);
 
   const handleSubmit = useCallback(
     (e: ChangeEvent) => {

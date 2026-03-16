@@ -34,8 +34,9 @@ export const SearchContent = (): ReactElement => {
   const handleSuggestionSearch = useCallback(
     (suggestion: string) => {
       search(suggestion);
+      triggerSearch();
     },
-    [search],
+    [search, triggerSearch],
   );
 
   const resultsRef = useFocusOnResults(
