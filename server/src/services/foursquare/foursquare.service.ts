@@ -70,16 +70,17 @@ const buildSearchParams = (
     fsq_category_ids: FOOD_CATEGORY_ID,
   };
 
+  if (params.price !== undefined) {
+    searchParams.min_price = String(params.price);
+    searchParams.max_price = String(params.price);
+  }
+
   // Priority: LLM-extracted "near" > browser geolocation "ll"
   if (params.near.length > 0) {
     searchParams.near = params.near;
   } else if (ll !== null && ll !== undefined) {
     searchParams.ll = ll;
   }
-
-  // NOTE: min_price/max_price filters are premium-only on free tier.
-  // We skip them to avoid 429 errors. The LLM still extracts price
-  // preference for potential frontend usage or future premium upgrade.
 
   if (params.open_now) {
     searchParams.open_now = 'true';
