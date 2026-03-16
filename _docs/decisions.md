@@ -11,7 +11,7 @@
 
 ### Context
 
-The app needs to convert free-form text like "cheap sushi in downtown LA open now" into structured search parameters (`query`, `near`, `price`, `open_now`). Three approaches were considered.
+The app needs to convert free-form text like "cheap sushi in downtown LA open now" into structured search parameters (`query`, `near`, `min_price`, `max_price`, `open_now`). Three approaches were considered.
 
 ### Decision
 
@@ -50,14 +50,14 @@ Use **Google Gemini 2.5 Flash** via the `@google/genai` SDK with **structured ou
 
 ### Context
 
-The Gemini SDK's `responseJsonSchema` guarantees the response _structure_ matches (correct types, correct field names). But it does NOT guarantee _business-valid values_ — e.g., `price: 7` is a valid number but not a valid price level (1-4).
+The Gemini SDK's `responseJsonSchema` guarantees the response _structure_ matches (correct types, correct field names). But it does NOT guarantee _business-valid values_ — e.g., `min_price: 7` is a valid number but not a valid price level (1-4).
 
 ### Decision
 
 Apply **two layers of validation** (later extended to five — see [ADR-014](#adr-014-unicode-sanitization-pre-processor) and [ADR-015](#adr-015-five-layer-defense-pipeline-prompt-injection--output-filtering)):
 
 1. **Layer 1 — SDK schema** — Guarantees JSON structure (types, field names)
-2. **Layer 2 — Zod schema** — Validates business rules (price 1-4, limit 1-50, non-empty strings)
+2. **Layer 2 — Zod schema** — Validates business rules (min_price/max_price 1-4 with min<=max, limit 1-50, non-empty strings)
 3. **Layer 0 — Unicode sanitization** — _(Added in ADR-014)_ Strips adversarial characters before the LLM sees the input
 4. **Pre-screen — Injection detection** — _(Added in ADR-015)_ Regex catches known injection patterns before LLM call
 5. **Post-gate — Output filtering** — _(Added in ADR-015)_ Checks for system prompt leakage and PII in output
@@ -71,10 +71,10 @@ Apply **two layers of validation** (later extended to five — see [ADR-014](#ad
 
 ### Alternatives Considered
 
-| Alternative                            | Why Rejected                                                                               |
-| -------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Trust SDK schema alone                 | Values like `price: 99` would pass through to Foursquare, causing confusing empty results. |
-| Validate only with Zod (no SDK schema) | Would need to handle malformed JSON, missing fields, wrong types manually.                 |
+| Alternative                            | Why Rejected                                                                                   |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Trust SDK schema alone                 | Values like `min_price: 99` would pass through to Foursquare, causing confusing empty results. |
+| Validate only with Zod (no SDK schema) | Would need to handle malformed JSON, missing fields, wrong types manually.                     |
 
 ### Consequences
 
@@ -181,7 +181,7 @@ The project has a frontend (React + Vite) and backend (Express + Bun). They coul
 
 Single monorepo with `server/` and `client/` subdirectories, deployed as separate services using the platform's **Root Directory** feature.
 
-```
+```text
 restaurant-finder/
 ├── server/     ← Backend (Render/Railway service, root: /server)
 ├── client/     ← Frontend (Render/Vercel service, root: /client)
@@ -658,7 +658,7 @@ guardOutput(params)             Post-gate: checks for prompt leakage + PII in ou
 ### Consequences
 
 - The `INJECTION_PATTERNS` array is static and requires manual updates for new attack vectors. A production system would benefit from a dynamic blocklist or ML classifier.
-- `guardOutput` checks only `query` and `near` fields. Other fields (`price`, `open_now`, `limit`) are numeric/boolean and inherently safe from text-based leakage.
+- `guardOutput` checks only `query` and `near` fields. Other fields (`min_price`, `max_price`, `open_now`, `limit`) are numeric/boolean and inherently safe from text-based leakage.
 - Frontend error handling already covers the new `PROMPT_INJECTION` and `OUTPUT_FILTERED` reason codes via the existing generic 400 handler (`SearchX` icon + rephrase hint). No frontend changes were needed.
 - Test count increased from 38 to 42 (4 new injection detection integration tests).
 
@@ -673,7 +673,7 @@ guardOutput(params)             Post-gate: checks for prompt leakage + PII in ou
 
 The `SYSTEM_INSTRUCTION` used pure **zero-shot prompting** — detailed rules described in plain English, with no concrete examples. This works well for common queries but fails on edge cases:
 
-- Price negations: `"not too pricey"` → LLM may return `price: 0` instead of `price: 2`
+- Price negations: `"not too pricey"` → LLM may return `min_price: 0` instead of `min_price: 2`
 - Open-now slang: `"still serving"` → LLM may not recognize the open-now signal
 - Abbreviations: `"DTLA"` → LLM may return `"DTLA"` literally instead of expanding it
 - Emoji inputs: `"🍕 near times square"` → LLM may not translate the emoji to `"pizza"`
@@ -683,14 +683,14 @@ The `SYSTEM_INSTRUCTION` used pure **zero-shot prompting** — detailed rules de
 
 Add a **few-shot examples block** at the end of `SYSTEM_INSTRUCTION`, immediately before the user's message is processed. The block contains 6 representative examples covering the highest-value edge cases:
 
-| Example                                               | Edge Case Demonstrated                           |
-| ----------------------------------------------------- | ------------------------------------------------ |
-| `"cheap sushi in downtown LA that's open now"`        | Baseline: price + location + open_now            |
-| `"not too expensive ramen near me"`                   | Price negation → `price: 2`, empty near          |
-| `"anything still serving in DTLA, something upscale"` | Slang → `open_now: true`, abbreviation expansion |
-| `"🍕 near times square"`                              | Emoji → English food translation                 |
-| `"find me a hospital"`                                | Non-food rejection → `is_food_related: false`    |
-| `"拉麺 東京"`                                         | Multilingual → both fields translated to English |
+| Example                                               | Edge Case Demonstrated                                    |
+| ----------------------------------------------------- | --------------------------------------------------------- |
+| `"cheap sushi in downtown LA that's open now"`        | Baseline: price + location + open_now                     |
+| `"not too expensive ramen near me"`                   | Price negation → `min_price: 2, max_price: 2`, empty near |
+| `"anything still serving in DTLA, something upscale"` | Slang → `open_now: true`, abbreviation expansion          |
+| `"🍕 near times square"`                              | Emoji → English food translation                          |
+| `"find me a hospital"`                                | Non-food rejection → `is_food_related: false`             |
+| `"拉麺 東京"`                                         | Multilingual → both fields translated to English          |
 
 Each example uses the **full 6-field schema** to reinforce the exact expected output shape.
 

@@ -32,7 +32,8 @@ const { app } = await import('@/app');
 const validSearchParams: SearchParams = {
   query: 'sushi',
   near: 'Los Angeles',
-  price: null,
+  min_price: null,
+  max_price: null,
   open_now: false,
   limit: 20,
   is_food_related: true,

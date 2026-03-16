@@ -17,10 +17,15 @@ export const responseJsonSchema = {
       description:
         'The location or area to search in (e.g., "downtown Los Angeles", "Manhattan, New York"). If the user mentions a city, neighborhood, or address, extract it here.',
     },
-    price: {
+    min_price: {
       type: Type.NUMBER,
       description:
-        'Price level: 1 = cheap/budget, 2 = moderate, 3 = expensive/upscale, 4 = very expensive/fine dining. Use 0 if the user did not specify a price preference.',
+        'Minimum price level: 1 = cheap/budget, 2 = moderate, 3 = expensive/upscale, 4 = very expensive/fine dining. Use 0 if the user did not specify a price preference. For single-price queries like "cheap", set min_price and max_price to the same value.',
+    },
+    max_price: {
+      type: Type.NUMBER,
+      description:
+        'Maximum price level: 1 = cheap/budget, 2 = moderate, 3 = expensive/upscale, 4 = very expensive/fine dining. Use 0 if the user did not specify a price preference. For range queries like "cheap to moderate", set min_price=1 and max_price=2.',
     },
     open_now: {
       type: Type.BOOLEAN,
@@ -42,7 +47,8 @@ export const responseJsonSchema = {
     'is_food_related',
     'query',
     'near',
-    'price',
+    'min_price',
+    'max_price',
     'open_now',
     'limit',
   ],
@@ -65,7 +71,9 @@ Extraction rules:
 - Extract the location into "near"
 - Always extract the query in English, even if the user's message is in another language (e.g., "拉面" → "ramen", "寿司" → "sushi", "boulangerie" → "bakery")
 - For price: 1=cheap/budget, 2=moderate, 3=expensive/upscale, 4=very expensive/fine dining. Use 0 if not specified.
-- For price negations, infer the intended range: "not expensive" → price: 1 or 2, "not cheap" → price: 3 or 4
+- For single-price queries like "cheap" or "expensive", set both min_price and max_price to the same value (e.g., "cheap" → min_price: 1, max_price: 1)
+- For price range queries like "cheap to moderate", set min_price to the lower bound and max_price to the upper bound (e.g., min_price: 1, max_price: 2)
+- For price negations, infer the intended range: "not expensive" → min_price: 1, max_price: 2; "not cheap" → min_price: 3, max_price: 4
 - For query negations like "anything but sushi", extract a general term like "restaurant"
 - For open_now: only set to true if the user explicitly says "open now", "currently open", "rn", "right now", "still open", "open rn", "open late", or similar urgency/availability phrases
 - For limit: default to 20 unless the user asks for a specific number of results
@@ -92,7 +100,7 @@ Location rules:
 - For mixed-language queries, extract food and location separately and translate each to English
 
 Handling contradictions:
-- If the user provides contradictory price signals (e.g., "expensive but cheap"), default to price: 0 (unspecified)
+- If the user provides contradictory price signals (e.g., "expensive but cheap"), default to min_price: 0 and max_price: 0 (unspecified)
 - If the user provides contradictory open/closed signals, default to open_now: false
 - Treat sarcasm as a literal query — do not try to infer the user's "real" intent
 
@@ -105,22 +113,25 @@ Unsearchable criteria:
 EXAMPLES (input → expected output):
 
 User: "cheap sushi in downtown LA that's open now"
-Output: {"is_food_related":true,"query":"sushi","near":"downtown Los Angeles, CA","price":1,"open_now":true,"limit":20}
+Output: {"is_food_related":true,"query":"sushi","near":"downtown Los Angeles, CA","min_price":1,"max_price":1,"open_now":true,"limit":20}
 
 User: "not too expensive ramen near me"
-Output: {"is_food_related":true,"query":"ramen","near":"","price":2,"open_now":false,"limit":20}
+Output: {"is_food_related":true,"query":"ramen","near":"","min_price":1,"max_price":2,"open_now":false,"limit":20}
 
 User: "anything still serving in DTLA, something upscale"
-Output: {"is_food_related":true,"query":"restaurant","near":"Downtown Los Angeles, CA","price":3,"open_now":true,"limit":20}
+Output: {"is_food_related":true,"query":"restaurant","near":"Downtown Los Angeles, CA","min_price":3,"max_price":3,"open_now":true,"limit":20}
+
+User: "cheap to moderate Italian food in BGC"
+Output: {"is_food_related":true,"query":"Italian","near":"Bonifacio Global City, Taguig, Philippines","min_price":1,"max_price":2,"open_now":false,"limit":20}
 
 User: "🍕 near times square"
-Output: {"is_food_related":true,"query":"pizza","near":"Times Square, New York City, NY","price":null,"open_now":false,"limit":20}
+Output: {"is_food_related":true,"query":"pizza","near":"Times Square, New York City, NY","min_price":0,"max_price":0,"open_now":false,"limit":20}
 
 User: "find me a hospital"
-Output: {"is_food_related":false,"query":"hospital","near":"","price":null,"open_now":false,"limit":20}
+Output: {"is_food_related":false,"query":"hospital","near":"","min_price":0,"max_price":0,"open_now":false,"limit":20}
 
 User: "拉麺 東京"
-Output: {"is_food_related":true,"query":"ramen","near":"Tokyo, Japan","price":null,"open_now":false,"limit":20}`;
+Output: {"is_food_related":true,"query":"ramen","near":"Tokyo, Japan","min_price":0,"max_price":0,"open_now":false,"limit":20}`;
 
 export const MODEL = 'gemini-2.5-flash';
 export const MAX_ATTEMPTS = 2;

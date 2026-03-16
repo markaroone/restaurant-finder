@@ -1,14 +1,8 @@
 import { Clock, MapPin, Utensils, Wallet, Zap } from 'lucide-react';
 import type { ReactElement } from 'react';
 
+import { formatPriceLabel } from '@/lib/format-price';
 import type { SearchParams } from '@/types/restaurant';
-
-const PRICE_LABELS: Record<number, string> = {
-  1: 'Budget',
-  2: 'Moderate',
-  3: 'Upscale',
-  4: 'Fine Dining',
-};
 
 type SearchParamsPillsProps = {
   searchParams: SearchParams;
@@ -24,8 +18,9 @@ export const SearchParamsPills = ({
   searchParams,
   parsedBy = 'llm',
 }: SearchParamsPillsProps): ReactElement => {
-  const { query, near, price, open_now } = searchParams;
+  const { query, near, min_price, max_price, open_now } = searchParams;
   const isHeuristic = parsedBy === 'heuristic';
+  const priceLabel = formatPriceLabel(min_price, max_price);
 
   return (
     <div
@@ -66,10 +61,10 @@ export const SearchParamsPills = ({
       )}
 
       {/* Price level */}
-      {price !== null && PRICE_LABELS[price] !== undefined && (
+      {priceLabel !== null && (
         <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 font-medium text-forest">
           <Wallet className="size-3.5" aria-hidden="true" />
-          {PRICE_LABELS[price]}
+          {priceLabel}
         </span>
       )}
 

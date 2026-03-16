@@ -2,8 +2,8 @@
 
 **Status:** IN PROGRESS
 **Current Phase:** Phase 5: Deployment & Documentation
-**Next Immediate Step:** Begin Phase 5 (deploy + README)
-**Last Updated:** 2026-03-15
+**Next Immediate Step:** Record demo video and finalize submission
+**Last Updated:** 2026-03-17
 
 ## The "Next Immediate Step"
 
@@ -102,7 +102,7 @@
   - [x] `execute.schema.test.ts` — code validation, message validation, searchParams validation (20 tests)
   - [x] `execute.service.test.ts` — mocked LLM/Foursquare, transform logic, error handling (9 tests)
   - [x] `execute.integration.test.ts` — 401/422/200/400 cases with Supertest (13 tests)
-- [x] Run `bun test` — 42 tests passing, 79 assertions
+- [x] Run `bun test` — 67 tests passing
 - [x] Run `bun run check` — no lint/type errors
 
 ---
@@ -268,7 +268,7 @@ Expanded test suite to cover new resilience features.
 - [x] Add heuristic fallback unit tests (UpstreamError triggers `parseMessageHeuristic`)
 - [x] Add placeholder location sanitization unit tests
 - [x] Add Foursquare UpstreamError integration test
-- [x] 49/49 tests passing across 3 suites
+- [x] 67/67 tests passing across 3 suites
 
 ---
 
@@ -287,7 +287,7 @@ Two-layer defense against Foursquare 400 "Boundaries could not be determined" er
   - Chip text is full reconstructed query: `"[food] in [near], [country]"` (e.g. "japanese in Bonifacio Global City, Philippines")
   - Clicking chip calls `onSearch(fullSuggestion)` → fires new search with corrected, fully-qualified string
   - `onSearch` prop threaded: `SearchContent` → `RestaurantList` → `ErrorDisplay`
-- [x] 49/49 tests still passing; `bun run check` ✅; `pnpm build` ✅
+- [x] 67/67 tests still passing; `bun run check` ✅; `pnpm build` ✅
   - ADR-019: Two-Layer Ambiguous Location Fix
 
 ---
@@ -301,19 +301,39 @@ Conducted static application security testing (SAST) review. Fixed 4 of 8 identi
 - [x] V7: ReDoS in `ll` regex — added `.max(40)` pre-check and bounded quantifiers (`\d{1,3}`, `\d{1,10}`) to eliminate catastrophic backtracking.
 - [x] V8: Unicode homoglyph injection bypass — installed `confusables@1.1.1` to normalize Unicode confusables (Cyrillic і → i) before running injection detection regex.
 - [x] Updated `AGENTS.md` with explicit commit body format rules.
-- [x] 49/49 tests passing; `bun run check` ✅
+- [x] 67/67 tests passing; `bun run check` ✅
   - ADR-020: Security Hardening (SAST Fixes)
+
+---
+
+### Phase 4.20: Price Range Support
+
+Upgraded price filtering from a single value to a min/max range, enabling queries like "cheap to moderate."
+
+- [x] Backend: replaced single `price` with `min_price`/`max_price` in types, Zod schema (with `min <= max` refinement), LLM schema/prompt, Foursquare integration, and heuristic parser
+- [x] Frontend: updated `SearchParams` type, `SearchParamsPills` to render ranges ("Budget – Moderate"), extracted `formatPriceLabel()` utility to `lib/format-price.ts`
+- [x] Tests: updated 3 test suites, added `min_price > max_price` rejection test — 67/67 passing
+- [x] Docs: updated `_docs/README.md`, `product.md`, `decisions.md` with `min_price`/`max_price` references
+
+---
+
+### Phase 4.21: Error Guard Refactor & Ambiguous Location Bug Fix
+
+Fixed a bug where the "Did you mean?" chip for ambiguous locations never appeared due to checking `error.meta?.reason` instead of `error.code`. Refactored error type detection into reusable type-guard functions.
+
+- [x] **Bug fix:** `error-display.tsx` was checking `error.meta?.reason === 'AMBIGUOUS_LOCATION'` but the backend sends the code in `error.code` — the "Did you mean?" UI was fully built but never triggered
+- [x] **Refactor:** Extracted `isAmbiguousLocationError()`, `isMissingLocationError()`, `isNotFoodRelatedError()`, `isBadRequestError()` type guards to `client/src/utils/error-guards.ts`
+- [x] Each guard is a proper TypeScript type guard (`error is ApiError`), eliminating the need for casting
+- [x] `error-display.tsx` updated to use guards: `if (isAmbiguousLocationError(error)) { ... }`
 
 ---
 
 ### Phase 5: Deployment & Documentation
 
-- [ ] Deploy backend to Render/Railway (root: `/server`)
-- [ ] Deploy frontend to Render/Vercel (root: `/client`)
-- [ ] Update frontend env to point to deployed backend URL
-- [ ] Write project-level `README.md`
-- [ ] Clean up git history
-- [ ] Final end-to-end test on deployed version
+- [x] Deploy backend to Railway (root: `/server`)
+- [x] Deploy frontend to Railway (root: `/client`)
+- [x] Update frontend env to point to deployed backend URL
+- [x] Write project-level `README.md`
 
 ## Changelog
 
@@ -339,4 +359,7 @@ Conducted static application security testing (SAST) review. Fixed 4 of 8 identi
 | 2026-03-15 | Phase 4.16 Exponential Backoff: full jitter, `isRetryableError`, timeout budget rebalanced 15s→8s/call. ADR-018.                                  |
 | 2026-03-15 | Phase 4.17 Test Coverage: expanded execute tests (49/49 passing).                                                                                 |
 | 2026-03-15 | Phase 4.18 Ambiguous Location Fix: LLM district expansion rule (Layer 1) + `AmbiguousLocationError` + "Did you mean?" chip UI (Layer 2). ADR-019. |
-| 2026-03-15 | Phase 4.19 Security Hardening: trust proxy, CORS null-origin block, ReDoS regex fix, Unicode confusables normalization. ADR-020. |
+| 2026-03-15 | Phase 4.19 Security Hardening: trust proxy, CORS null-origin block, ReDoS regex fix, Unicode confusables normalization. ADR-020.                  |
+| 2026-03-16 | Phase 5 Deployment: deployed backend and frontend to Railway, updated README with deployed URLs.                                                  |
+| 2026-03-16 | Phase 4.20 Price Range: `min_price`/`max_price` across backend, frontend, tests, and docs. `formatPriceLabel()` utility extracted.                |
+| 2026-03-17 | Phase 4.21 Error Guards: fixed ambiguous location bug (`meta.reason` → `error.code`), extracted type-guard functions to `error-guards.ts`.        |

@@ -42,7 +42,8 @@ flowchart LR
 | ----------------- | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------- |
 | `query`           | `string`         | Yes      | Cuisine or restaurant type (e.g., "sushi", "Italian")                                                          |
 | `near`            | `string`         | No       | Location to search (e.g., "downtown Los Angeles"). Defaults to `''` — triggers browser/IP geolocation fallback |
-| `price`           | `number \| null` | No       | Price level 1-4 (1=cheap, 4=very expensive)                                                                    |
+| `min_price`       | `number \| null` | No       | Minimum price level 1-4 (1=cheap, 4=very expensive). For single-price queries, equals `max_price`              |
+| `max_price`       | `number \| null` | No       | Maximum price level 1-4. For ranges like "cheap to moderate", differs from `min_price`                         |
 | `open_now`        | `boolean`        | No       | Whether to filter for currently open places                                                                    |
 | `limit`           | `number`         | No       | Number of results (default: 20, max: 50)                                                                       |
 | `is_food_related` | `boolean`        | No       | Whether the query is food-related (LLM guardrail)                                                              |
@@ -55,7 +56,7 @@ flowchart LR
 | `name`       | `string`                                        | Restaurant name                        |
 | `address`    | `string`                                        | Formatted address                      |
 | `categories` | `{ name: string; icon: string }[]`              | Cuisine/category labels with icon URLs |
-| `price`      | `number \| null`                                | Price level 1-4                        |
+
 | `rating`     | `number \| null`                                | Rating (if available from free tier)   |
 | `distance`   | `number \| null`                                | Distance in meters from search center  |
 | `hours`      | `{ openNow: boolean; display: string } \| null` | Hours information                      |
@@ -93,7 +94,7 @@ flowchart LR
             "icon": "https://ss3.4sqi.net/img/categories_v2/food/sushi_64.png"
           }
         ],
-        "price": null,
+
         "rating": null,
         "distance": 450,
         "hours": null,
@@ -104,7 +105,8 @@ flowchart LR
     "searchParams": {
       "query": "sushi",
       "near": "downtown Los Angeles, CA",
-      "price": 1,
+      "min_price": 1,
+      "max_price": 1,
       "open_now": true,
       "limit": 20,
       "is_food_related": true
@@ -139,7 +141,7 @@ flowchart LR
 1. Validate `code` against the configured access code FIRST, before any processing
 2. Validate `message` is present, non-empty, max 500 chars
 3. LLM output is validated with Zod before querying Foursquare
-4. If LLM returns invalid values (e.g., `price: 5`), retry once with exponential backoff, then fall back to heuristic parser before failing with 422
+4. If LLM returns invalid values (e.g., `min_price: 5`), retry once with exponential backoff, then fall back to heuristic parser before failing with 422
 5. If Foursquare returns 0 results, return empty `results: []` with 200 (not an error)
 6. All Foursquare queries include `fsq_category_ids=4d4b7105d754a06374d81259` (root Food category) to prevent grocery stores, hotels, and landmarks from appearing in results
 7. Transform Foursquare response to strip noisy/irrelevant fields
@@ -201,6 +203,8 @@ flowchart TD
 | ------------------ | ------------------------------------------------------- |
 | `query`            | `query`                                                 |
 | `near`             | `near` (or `ll` if near is empty)                       |
+| `min_price`        | `min_price` (only when not null)                        |
+| `max_price`        | `max_price` (only when not null)                        |
 | `open_now`         | `open_now`                                              |
 | `limit`            | `limit`                                                 |
 | _(always set)_     | `sort=RELEVANCE`                                        |
@@ -218,14 +222,14 @@ flowchart TD
 > - Response ID field: `fsq_place_id` (not `fsq_id`)
 > - Free-tier available fields: `fsq_place_id`, `name`, `location`, `categories`, `distance`, `link`, `latitude`, `longitude`
 > - Premium fields (`rating`, `price`, `hours`, `photos`) require paid API credits — return null on free tier
-> - `min_price`/`max_price` are available on free tier but skipped since the LLM extracts price intent for frontend display only
+> - `min_price`/`max_price` search params are available on free tier and are passed to Foursquare to filter results by price range
 
 ## Validation Schemas (Zod)
 
 | Schema               | Location            | Fields                                                                                                                                                                                                     |
 | -------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `executeQuerySchema` | `execute.schema.ts` | `message: z.string().min(2).max(500)`, `code: z.literal(ACCESS_CODE)`, `ll: z.string().max(40).regex(…).optional()`                                                                                        |
-| `searchParamsSchema` | `execute.schema.ts` | `query: z.string()`, `near: z.string().default('')`, `price: z.number().min(1).max(4).nullable()`, `open_now: z.boolean()`, `limit: z.number().min(1).max(50).default(20)`, `is_food_related: z.boolean()` |
+| `searchParamsSchema` | `execute.schema.ts` | `query: z.string()`, `near: z.string().default('')`, `min_price: z.number().min(1).max(4).nullable()`, `max_price: z.number().min(1).max(4).nullable()` + refinement `min_price <= max_price`, `open_now: z.boolean()`, `limit: z.number().min(1).max(50).default(20)`, `is_food_related: z.boolean()` |
 | `envSchema`          | `config/env.ts`     | `PORT`, `NODE_ENV`, `GEMINI_API_KEY`, `FOURSQUARE_API_KEY`, `ALLOWED_ORIGINS`                                                                                                                              |
 
 ## Authentication
@@ -352,11 +356,14 @@ client/
 │   │   └── use-search-restaurants.ts       # TanStack Query hook
 │   ├── types/
 │   │   └── restaurant.ts
-│   └── utils/
-│       ├── api-error.ts                    # ApiError class
-│       ├── with-api-error.ts               # HOF wrapper
-│       ├── sort-results.ts                 # Client-side sort utility
-│       └── logger.ts
+│   ├── utils/
+│   │   ├── api-error.ts                    # ApiError class
+│   │   ├── error-guards.ts                 # Type-guard helpers (isAmbiguousLocationError, etc.)
+│   │   ├── with-api-error.ts               # HOF wrapper
+│   │   ├── sort-results.ts                 # Client-side sort utility
+│   │   └── logger.ts
+│   └── lib/
+│       └── format-price.ts                 # Price label formatter (Budget, Moderate, Budget – Moderate)
 ├── package.json
 ├── vite.config.ts
 └── tsconfig.json
@@ -384,7 +391,7 @@ The frontend's `vite.config.ts` will proxy `/api/*` to the backend URL in dev, a
 1. **Schema validation tests** (`execute.schema.test.ts`):
    - `code` must match the configured access code
    - `message` must be present, 1-500 chars
-   - Parsed search params: `price` must be 1-4, `limit` must be 1-50
+   - Parsed search params: `min_price`/`max_price` must be 1-4 with `min_price <= max_price`, `limit` must be 1-50
 
 2. **Service tests** (`execute.service.test.ts`):
    - Mock LLM service → verify Foursquare params are correctly mapped

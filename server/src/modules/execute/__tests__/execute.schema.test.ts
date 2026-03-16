@@ -101,7 +101,8 @@ describe('searchParamsSchema', () => {
     const result = searchParamsSchema.safeParse({
       query: 'sushi',
       near: 'Los Angeles',
-      price: 2,
+      min_price: 2,
+      max_price: 3,
       open_now: true,
       limit: 20,
       is_food_related: true,
@@ -111,7 +112,8 @@ describe('searchParamsSchema', () => {
       expect(result.data).toEqual({
         query: 'sushi',
         near: 'Los Angeles',
-        price: 2,
+        min_price: 2,
+        max_price: 3,
         open_now: true,
         limit: 20,
         is_food_related: true,
@@ -126,7 +128,8 @@ describe('searchParamsSchema', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.near).toBe('');
-      expect(result.data.price).toBeNull();
+      expect(result.data.min_price).toBeNull();
+      expect(result.data.max_price).toBeNull();
       expect(result.data.open_now).toBe(false);
       expect(result.data.limit).toBe(20);
       expect(result.data.is_food_related).toBe(true);
@@ -140,31 +143,44 @@ describe('searchParamsSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  test('rejects price out of range (too high)', () => {
+  test('rejects min_price out of range (too high)', () => {
     const result = searchParamsSchema.safeParse({
       query: 'pizza',
-      price: 7,
+      min_price: 7,
+      max_price: 7,
     });
     expect(result.success).toBe(false);
   });
 
-  test('rejects price out of range (zero)', () => {
+  test('rejects min_price out of range (zero)', () => {
     const result = searchParamsSchema.safeParse({
       query: 'pizza',
-      price: 0,
+      min_price: 0,
+      max_price: 0,
     });
     expect(result.success).toBe(false);
   });
 
-  test('accepts null price', () => {
+  test('accepts null price fields', () => {
     const result = searchParamsSchema.safeParse({
       query: 'pizza',
-      price: null,
+      min_price: null,
+      max_price: null,
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.price).toBeNull();
+      expect(result.data.min_price).toBeNull();
+      expect(result.data.max_price).toBeNull();
     }
+  });
+
+  test('rejects min_price > max_price', () => {
+    const result = searchParamsSchema.safeParse({
+      query: 'pizza',
+      min_price: 3,
+      max_price: 1,
+    });
+    expect(result.success).toBe(false);
   });
 
   test('rejects limit over 50', () => {

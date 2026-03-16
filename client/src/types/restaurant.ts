@@ -26,7 +26,8 @@ export type Restaurant = {
 export type SearchParams = {
   query: string;
   near: string;
-  price: number | null;
+  min_price: number | null;
+  max_price: number | null;
   open_now: boolean;
   limit: number;
 };

@@ -70,9 +70,12 @@ const buildSearchParams = (
     fsq_category_ids: FOOD_CATEGORY_ID,
   };
 
-  if (params.price !== undefined) {
-    searchParams.min_price = String(params.price);
-    searchParams.max_price = String(params.price);
+  if (params.min_price !== undefined && params.min_price !== null) {
+    searchParams.min_price = String(params.min_price);
+  }
+
+  if (params.max_price !== undefined && params.max_price !== null) {
+    searchParams.max_price = String(params.max_price);
   }
 
   // Priority: LLM-extracted "near" > browser geolocation "ll"

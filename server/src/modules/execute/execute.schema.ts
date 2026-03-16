@@ -34,14 +34,25 @@ export const executeQuerySchema = z.object({
  * `near` is now optional — when empty, the backend falls back to `ll`
  * coordinates from the user's browser geolocation.
  */
-export const searchParamsSchema = z.object({
-  query: z.string().min(1, 'Search query is required'),
-  near: z.string().default(''),
-  price: z.number().int().min(1).max(4).nullable().default(null),
-  open_now: z.boolean().default(false),
-  limit: z.number().int().min(1).max(50).default(20),
-  is_food_related: z.boolean().default(true),
-});
+export const searchParamsSchema = z
+  .object({
+    query: z.string().min(1, 'Search query is required'),
+    near: z.string().default(''),
+    min_price: z.number().int().min(1).max(4).nullable().default(null),
+    max_price: z.number().int().min(1).max(4).nullable().default(null),
+    open_now: z.boolean().default(false),
+    limit: z.number().int().min(1).max(50).default(20),
+    is_food_related: z.boolean().default(true),
+  })
+  .refine(
+    (data) => {
+      if (data.min_price !== null && data.max_price !== null) {
+        return data.min_price <= data.max_price;
+      }
+      return true;
+    },
+    { message: 'min_price must be less than or equal to max_price' },
+  );
 
 export type ExecuteQueryInput = z.infer<typeof executeQuerySchema>;
 export type SearchParamsInput = z.infer<typeof searchParamsSchema>;
