@@ -10,6 +10,12 @@ import type { ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { ApiError } from '@/utils/api-error';
+import {
+  isAmbiguousLocationError,
+  isBadRequestError,
+  isMissingLocationError,
+  isNotFoodRelatedError,
+} from '@/utils/error-guards';
 
 type ErrorDisplayProps = {
   error: Error;
@@ -29,17 +35,8 @@ export const ErrorDisplay = ({
   onRetry,
   onSearch,
 }: ErrorDisplayProps): ReactNode => {
-  const isApiError = error instanceof ApiError;
-  const isBadRequest = isApiError && error.status === 400;
-  const isAmbiguousLocation =
-    isBadRequest && error.meta?.reason === 'AMBIGUOUS_LOCATION';
-  const isMissingLocation =
-    isBadRequest && isApiError && error.meta?.reason === 'MISSING_LOCATION';
-  const isNotFoodRelated =
-    isBadRequest && isApiError && error.meta?.reason === 'NOT_FOOD_RELATED';
-
   // ── Ambiguous location: "Did you mean?" prompt ─────────────
-  if (isAmbiguousLocation) {
+  if (isAmbiguousLocationError(error)) {
     const near = String(error.meta?.near ?? '');
     const suggestion = String(error.meta?.suggestion ?? near);
     const query = error.meta?.query ? String(error.meta.query) : '';
@@ -74,7 +71,7 @@ export const ErrorDisplay = ({
   }
 
   // ── Missing location: Location-specific hint ───────────────
-  if (isMissingLocation)
+  if (isMissingLocationError(error))
     return (
       <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
         <MapPinOff
@@ -92,7 +89,7 @@ export const ErrorDisplay = ({
     );
 
   // ── Not food related: Food-specific hint ────────────────────
-  if (isNotFoodRelated)
+  if (isNotFoodRelatedError(error))
     return (
       <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
         <UtensilsCrossed
@@ -112,7 +109,7 @@ export const ErrorDisplay = ({
     );
 
   // ── Other 400s: Soft inline hint ───────────────────────────
-  if (isBadRequest)
+  if (isBadRequestError(error))
     return (
       <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
         <SearchX
@@ -134,8 +131,9 @@ export const ErrorDisplay = ({
     );
 
   // ── Other errors: Full error panel ─────────────────────────
-  const title = isApiError ? error.detail : 'Something went wrong';
-  const subtitle = isApiError
+  const isApi = error instanceof ApiError;
+  const title = isApi ? error.detail : 'Something went wrong';
+  const subtitle = isApi
     ? `Error ${error.status}: ${error.code}`
     : 'An unexpected error occurred while searching.';
 

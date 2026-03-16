@@ -6,8 +6,10 @@ export type SearchParams = {
   query: string;
   /** Location to search (e.g., "downtown Los Angeles"). */
   near: string;
-  /** Price level 1-4 (1=cheap, 4=very expensive). Null if not specified. */
-  price: number | null;
+  /** Minimum price level 1-4 (1=cheap, 4=very expensive). Null if not specified. */
+  min_price: number | null;
+  /** Maximum price level 1-4 (1=cheap, 4=very expensive). Null if not specified. */
+  max_price: number | null;
   /** Whether to filter for currently open places. */
   open_now: boolean;
   /** Number of results to return (1-50). */

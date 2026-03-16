@@ -14,14 +14,14 @@ Restaurant Finder eliminates the friction between how users **think** and how se
 
 ## Glossary of Terms
 
-| Term                  | Definition                                                                                              |
-| --------------------- | ------------------------------------------------------------------------------------------------------- |
-| **Message**           | The user's free-form text input (e.g., "cheap sushi in LA open now")                                    |
-| **Code**              | A static access code required to authenticate every API request (configured via environment variable)   |
-| **Parsed Parameters** | The structured JSON object extracted from the user's message by the LLM                                 |
-| **LLM**               | Large Language Model — the AI service (Google Gemini) that parses natural language into structured data |
-| **Foursquare**        | Third-party Places API used to search for real restaurant data                                          |
-| **Price Level**       | 1 = cheap/budget, 2 = moderate, 3 = expensive, 4 = very expensive                                       |
+| Term                  | Definition                                                                                                                                      |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Message**           | The user's free-form text input (e.g., "cheap sushi in LA open now")                                                                            |
+| **Code**              | A static access code required to authenticate every API request (configured via environment variable)                                           |
+| **Parsed Parameters** | The structured JSON object extracted from the user's message by the LLM                                                                         |
+| **LLM**               | Large Language Model — the AI service (Google Gemini) that parses natural language into structured data                                         |
+| **Foursquare**        | Third-party Places API used to search for real restaurant data                                                                                  |
+| **Price Level**       | 1 = cheap/budget, 2 = moderate, 3 = expensive, 4 = very expensive. Supports single values and ranges (e.g., "cheap to moderate" → min=1, max=2) |
 
 ## Features
 
@@ -35,7 +35,7 @@ Restaurant Finder eliminates the friction between how users **think** and how se
 
 - **What:** The system interprets the user's message and extracts structured parameters (cuisine, location, price, open status)
 - **How it works:** The backend sends the user's message to Google Gemini with a structured output schema → Gemini returns JSON → Backend validates with Zod
-- **Example:** "cheap Italian near the Eiffel Tower" → `{ query: "Italian", near: "Eiffel Tower, Paris", price: 1, open_now: false }`
+- **Example:** "cheap Italian near the Eiffel Tower" → `{ query: "Italian", near: "Eiffel Tower, Paris", min_price: 1, max_price: 1, open_now: false }`
 
 ### 3. Restaurant Results Display
 

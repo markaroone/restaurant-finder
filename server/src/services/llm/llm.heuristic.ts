@@ -163,7 +163,8 @@ export const parseMessageHeuristic = async (
   const params: SearchParams = {
     query,
     near,
-    price,
+    min_price: price,
+    max_price: price,
     open_now,
     limit: 20,
     is_food_related: true,

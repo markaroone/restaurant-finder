@@ -142,13 +142,10 @@ const validateAndNormalize = (
   attempt: number,
 ): SearchParams | null => {
   // Normalize price: 0 means "not specified" → null
-  if (
-    typeof raw === 'object' &&
-    raw !== null &&
-    'price' in raw &&
-    (raw as Record<string, unknown>).price === 0
-  ) {
-    (raw as Record<string, unknown>).price = null;
+  if (typeof raw === 'object' && raw !== null) {
+    const obj = raw as Record<string, unknown>;
+    if (obj.min_price === 0) obj.min_price = null;
+    if (obj.max_price === 0) obj.max_price = null;
   }
 
   const result = searchParamsSchema.safeParse(raw);
