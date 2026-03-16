@@ -17,9 +17,9 @@ export const sortRestaurants = (
   if (sortBy === 'relevance') return results;
 
   return [...results].sort((a, b) => {
-    if (a.distance == null && b.distance == null) return 0;
-    if (a.distance == null) return 1;
-    if (b.distance == null) return -1;
+    if (a.distance === null && b.distance === null) return 0;
+    if (a.distance === null) return 1;
+    if (b.distance === null) return -1;
     return a.distance - b.distance;
   });
 };

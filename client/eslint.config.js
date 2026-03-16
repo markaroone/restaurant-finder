@@ -41,6 +41,7 @@ export default defineConfig([
     },
     rules: {
       ...reactHooks.configs['recommended-latest'].rules,
+      eqeqeq: ['error', 'always'],
       'no-console': 'error',
 
       'simple-import-sort/imports': [

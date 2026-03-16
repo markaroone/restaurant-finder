@@ -82,7 +82,7 @@ export const RestaurantCard = ({
               <p className="text-sm">{restaurant.address || '-'}</p>
             </div>
 
-            {restaurant.distance != null && (
+            {restaurant.distance !== null && (
               <div className="flex items-center gap-2">
                 <Navigation className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <p className="text-sm font-medium text-soft-forest">

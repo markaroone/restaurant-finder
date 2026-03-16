@@ -1,173 +1,23 @@
-import geoip from 'geoip-lite';
-
 import {
   AmbiguousLocationError,
   BadRequestError,
 } from '@/common/utils/api-errors';
 import { logger } from '@/common/utils/logger';
+import { PLACEHOLDER_LOCATIONS } from '@/modules/execute/execute.constants';
+import { ExecuteResponse } from '@/modules/execute/execute.types';
 import {
-  ExecuteResponse,
-  TransformedRestaurant,
-} from '@/modules/execute/execute.types';
+  buildDistanceLabel,
+  LocationSource,
+  resolveCountryFromIp,
+  resolveIpLocation,
+  transformResults,
+} from '@/modules/execute/execute.util';
 import { FoursquarePlace, searchRestaurants } from '@/services/foursquare';
 import {
   detectInjection,
   parseMessage,
   parseMessageHeuristic,
 } from '@/services/llm';
-
-/**
- * Transforms a raw Foursquare place into our clean client-facing shape.
- * Premium fields (price, rating, hours, geocodes) are not available on the
- * free tier, so they always return null. The types still include them for
- * forward-compatibility if the user upgrades their Foursquare plan.
- */
-const transformPlace = (place: FoursquarePlace): TransformedRestaurant => ({
-  id: place.fsq_place_id ?? crypto.randomUUID(),
-  name: place.name ?? 'Unknown',
-  address: place.location?.formatted_address ?? 'Address unavailable',
-  categories: (place.categories ?? []).map((cat) => ({
-    name: cat.name ?? 'Restaurant',
-    icon: cat.icon ? `${cat.icon.prefix}64${cat.icon.suffix}` : '',
-  })),
-  price: null, // Premium field — not available on free tier
-  rating: null, // Premium field — not available on free tier
-  distance: place.distance ?? null,
-  hours: null, // Premium field — not available on free tier
-  location:
-    place.latitude != null && place.longitude != null
-      ? { lat: place.latitude, lng: place.longitude }
-      : null,
-  link: place.link ?? null,
-});
-
-/**
- * Transforms an array of Foursquare places into clean client-facing objects.
- */
-const transformResults = (
-  places: FoursquarePlace[],
-): TransformedRestaurant[] => {
-  return places.map(transformPlace);
-};
-
-/**
- * Resolves a lat,lng string from the client's IP address using the local
- * MaxMind GeoLite2 database (geoip-lite). Returns undefined if lookup fails.
- */
-const resolveIpLocation = (ip?: string): string | undefined => {
-  if (!ip) return undefined;
-
-  // Strip IPv6-mapped prefix (e.g., "::ffff:192.168.1.1" → "192.168.1.1")
-  const cleanIp = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
-
-  // Skip private/loopback IPs — they won't resolve
-  if (
-    cleanIp === '127.0.0.1' ||
-    cleanIp === '::1' ||
-    cleanIp.startsWith('192.168.') ||
-    cleanIp.startsWith('10.')
-  ) {
-    logger.debug({ ip: cleanIp }, '⏭️ Skipping geoip for private/loopback IP');
-    return undefined;
-  }
-
-  const geo = geoip.lookup(cleanIp);
-  if (geo?.ll && geo.city) {
-    const [lat, lng] = geo.ll;
-    logger.info(
-      { ip: cleanIp, city: geo.city, ll: `${lat},${lng}` },
-      '📍 Resolved IP to location via geoip-lite',
-    );
-    return `${lat},${lng}`;
-  }
-
-  logger.debug({ ip: cleanIp }, '⚠️ geoip-lite lookup returned no result');
-  return undefined;
-};
-
-/**
- * Placeholder location strings the LLM sometimes produces
- * (e.g., "near me" → near: "current location"). Foursquare can't resolve these,
- * so they are stripped to trigger the browser/IP geolocation fallback.
- */
-const PLACEHOLDER_LOCATIONS = [
-  'current location',
-  'near me',
-  'my location',
-  'my area',
-  'nearby',
-  'here',
-]; /**
- * Maps ISO 3166-1 alpha-2 country codes to full English country names.
- * Covers the most common countries; falls back to the raw code for unlisted entries.
- */
-const ISO_COUNTRY_NAMES: Record<string, string> = {
-  PH: 'Philippines',
-  US: 'United States',
-  GB: 'United Kingdom',
-  AU: 'Australia',
-  CA: 'Canada',
-  JP: 'Japan',
-  KR: 'South Korea',
-  SG: 'Singapore',
-  MY: 'Malaysia',
-  TH: 'Thailand',
-  ID: 'Indonesia',
-  VN: 'Vietnam',
-  IN: 'India',
-  CN: 'China',
-  FR: 'France',
-  DE: 'Germany',
-  ES: 'Spain',
-  IT: 'Italy',
-  PT: 'Portugal',
-  AE: 'United Arab Emirates',
-  SA: 'Saudi Arabia',
-  MX: 'Mexico',
-  BR: 'Brazil',
-  NZ: 'New Zealand',
-};
-
-/**
- * Resolves the country name from the client's IP via geoip-lite.
- * Used to enrich AMBIGUOUS_LOCATION suggestions with "[near], [country]".
- * Returns null if the lookup fails or the IP is private.
- */
-const resolveCountryFromIp = (ip?: string): string | null => {
-  if (!ip) return null;
-  const cleanIp = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
-  if (
-    cleanIp === '127.0.0.1' ||
-    cleanIp === '::1' ||
-    cleanIp.startsWith('192.168.') ||
-    cleanIp.startsWith('10.')
-  )
-    return null;
-
-  const geo = geoip.lookup(cleanIp);
-  if (!geo?.country) return null;
-
-  return ISO_COUNTRY_NAMES[geo.country] ?? geo.country;
-};
-
-type LocationSource = 'near' | 'browser' | 'ip' | null;
-
-/**
- * Builds a human-readable distance suffix based on which location tier resolved.
- * e.g., "away from Makati City", "away from you", "away from you (approx.)"
- */
-const buildDistanceLabel = (source: LocationSource, near: string): string => {
-  switch (source) {
-    case 'near':
-      return `away from ${near}`;
-    case 'browser':
-      return 'away from you';
-    case 'ip':
-      return 'away from you (approx.)';
-    default:
-      return 'away';
-  }
-};
 
 /**
  * Main search pipeline: LLM parsing → location resolution → Foursquare search → transform.
@@ -217,7 +67,7 @@ export const executeSearch = async (
 
   // Step 2: Resolve location — priority chain
   const hasNear = searchParams.near.length > 0;
-  const hasLL = ll != null && ll.length > 0;
+  const hasLL = ll !== null && ll !== undefined && ll.length > 0;
 
   // Track which tier resolved the location for the distance label
   let locationSource: LocationSource = null;
@@ -249,7 +99,7 @@ export const executeSearch = async (
   }
 
   // Step 3: Foursquare search — pass ll as fallback when near is empty
-  let rawResults;
+  let rawResults: FoursquarePlace[];
   try {
     rawResults = await searchRestaurants(
       searchParams,
@@ -261,7 +111,7 @@ export const executeSearch = async (
     if (error instanceof AmbiguousLocationError) {
       const country = resolveCountryFromIp(clientIp);
       const suggestion =
-        country != null
+        country !== null && country !== undefined
           ? `${searchParams.near}, ${country}`
           : searchParams.near;
       logger.warn(

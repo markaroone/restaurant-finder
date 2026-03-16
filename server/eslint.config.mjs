@@ -25,6 +25,7 @@ export default [
         { argsIgnorePattern: '^_' },
       ],
       '@typescript-eslint/no-explicit-any': 'error',
+      eqeqeq: ['error', 'always'],
       'no-console': 'error',
     },
   },

@@ -13,6 +13,7 @@
 - **JSDoc** on all exported functions and other codes if necessary.
 - Always specify return types on functions.
 - Use `1_000` not `1000` (numeric separators).
+- **Strict equality only.** Use `===`/`!==`, never `==`/`!=`.
 
 ## Coding Style (Universal)
 
