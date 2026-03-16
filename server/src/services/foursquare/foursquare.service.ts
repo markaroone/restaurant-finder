@@ -135,9 +135,7 @@ export const searchRestaurants = async (
         { near: searchParams.near },
         '⚠️  Foursquare could not geocode near param — throwing AMBIGUOUS_LOCATION',
       );
-      // Suggestion is empty string here; execute.service.ts enriches it with
-      // the geoip-derived country before re-throwing.
-      throw new AmbiguousLocationError(searchParams.near, '');
+      throw new AmbiguousLocationError(searchParams.near);
     }
 
     logger.error(

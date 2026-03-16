@@ -77,7 +77,7 @@
 - [x] `QUICK_SEARCHES as const` — tighter TypeScript inference
 - [x] Soft 400 error message — gentle inline hint instead of red error panel
 - [x] Four-tier error display:
-  - `AMBIGUOUS_LOCATION` → MapPin icon, "Did you mean?" chip with full reconstructed query (ADR-019)
+  - `AMBIGUOUS_LOCATION` → MapPin icon, "Try adding a city or country" prompt (chip removed — ADR-021)
   - `MISSING_LOCATION` → MapPinOff icon, location-specific hint
   - Other 400s → SearchX icon, rephrase hint
   - Server errors → red panel with retry button
@@ -280,13 +280,10 @@ Two-layer defense against Foursquare 400 "Boundaries could not be determined" er
   - LLM now always expands abbreviations to include city + country ("BGC" → "Bonifacio Global City, Taguig, Philippines")
   - Handles 95%+ of cases at ~40 extra tokens per request
 - [x] **Layer 2 — Recovery (safety net for anything that slips through):**
-  - `AmbiguousLocationError` class added to `api-errors.ts` (400, code `AMBIGUOUS_LOCATION`, meta: `near` + `suggestion` + `query`)
+  - `AmbiguousLocationError` class added to `api-errors.ts` (400, code `AMBIGUOUS_LOCATION`, meta: `near`)
   - `foursquare.service.ts`: detects specific Foursquare 400 body string, throws `AmbiguousLocationError` instead of generic `UpstreamError`
-  - `execute.service.ts`: catches it, resolves country from client IP via `geoip-lite`, re-throws with enriched suggestion + original `query`
-  - `error-display.tsx`: new fourth error tier — MapPin icon, "We couldn't pinpoint X" message, clickable "Did you mean?" chip
-  - Chip text is full reconstructed query: `"[food] in [near], [country]"` (e.g. "japanese in Bonifacio Global City, Philippines")
-  - Clicking chip calls `onSearch(fullSuggestion)` → fires new search with corrected, fully-qualified string
-  - `onSearch` prop threaded: `SearchContent` → `RestaurantList` → `ErrorDisplay`
+  - `error-display.tsx`: fourth error tier — MapPin icon, "We couldn't pinpoint X. Try adding a city or country" prompt
+  - ~~"Did you mean?" chip removed in ADR-021 — GeoIP suggestion enrichment also removed from `execute.service.ts`~~
 - [x] 67/67 tests still passing; `bun run check` ✅; `pnpm build` ✅
   - ADR-019: Two-Layer Ambiguous Location Fix
 
@@ -319,9 +316,9 @@ Upgraded price filtering from a single value to a min/max range, enabling querie
 
 ### Phase 4.21: Error Guard Refactor & Ambiguous Location Bug Fix
 
-Fixed a bug where the "Did you mean?" chip for ambiguous locations never appeared due to checking `error.meta?.reason` instead of `error.code`. Refactored error type detection into reusable type-guard functions.
+Fixed a bug where the "Did you mean?" chip for ambiguous locations never appeared due to checking `error.meta?.reason` instead of `error.code`. Refactored error type detection into reusable type-guard functions. _(Note: the chip was later removed entirely in ADR-021)_
 
-- [x] **Bug fix:** `error-display.tsx` was checking `error.meta?.reason === 'AMBIGUOUS_LOCATION'` but the backend sends the code in `error.code` — the "Did you mean?" UI was fully built but never triggered
+- [x] **Bug fix:** `error-display.tsx` was checking `error.meta?.reason === 'AMBIGUOUS_LOCATION'` but the backend sends the code in `error.code`
 - [x] **Refactor:** Extracted `isAmbiguousLocationError()`, `isMissingLocationError()`, `isNotFoodRelatedError()`, `isBadRequestError()` type guards to `client/src/utils/error-guards.ts`
 - [x] Each guard is a proper TypeScript type guard (`error is ApiError`), eliminating the need for casting
 - [x] `error-display.tsx` updated to use guards: `if (isAmbiguousLocationError(error)) { ... }`
@@ -363,3 +360,4 @@ Fixed a bug where the "Did you mean?" chip for ambiguous locations never appeare
 | 2026-03-16 | Phase 5 Deployment: deployed backend and frontend to Railway, updated README with deployed URLs.                                                  |
 | 2026-03-16 | Phase 4.20 Price Range: `min_price`/`max_price` across backend, frontend, tests, and docs. `formatPriceLabel()` utility extracted.                |
 | 2026-03-17 | Phase 4.21 Error Guards: fixed ambiguous location bug (`meta.reason` → `error.code`), extracted type-guard functions to `error-guards.ts`.        |
+| 2026-03-17 | Phase 4.22 Remove Suggestion Chip: removed "Did you mean?" chip + GeoIP enrichment. Simplified `AmbiguousLocationError`. ADR-021.                |

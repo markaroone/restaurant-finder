@@ -20,12 +20,11 @@ import {
 type ErrorDisplayProps = {
   error: Error;
   onRetry: () => void;
-  onSearch?: (query: string) => void;
 };
 
 /**
  * Error state component.
- * - AMBIGUOUS_LOCATION: "Did you mean?" prompt with geoip-derived suggestion chip.
+ * - AMBIGUOUS_LOCATION: prompt to add a city or country.
  * - MISSING_LOCATION: prompt to include a location or enable geolocation.
  * - Other 400s: gentle inline hint — the user just needs to rephrase.
  * - Everything else: full error panel with retry button.
@@ -33,16 +32,10 @@ type ErrorDisplayProps = {
 export const ErrorDisplay = ({
   error,
   onRetry,
-  onSearch,
 }: ErrorDisplayProps): ReactNode => {
-  // ── Ambiguous location: "Did you mean?" prompt ─────────────
+  // ── Ambiguous location: prompt to add city/country ─────────
   if (isAmbiguousLocationError(error)) {
     const near = String(error.meta?.near ?? '');
-    const suggestion = String(error.meta?.suggestion ?? near);
-    const query = error.meta?.query ? String(error.meta.query) : '';
-    // Reconstruct the full original intent: "[food] in [expanded location]"
-    const fullSuggestion =
-      query && suggestion !== near ? `${query} in ${suggestion}` : suggestion;
     return (
       <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
         <MapPin
@@ -54,18 +47,6 @@ export const ErrorDisplay = ({
           <strong className="text-foreground">&quot;{near}&quot;</strong>. Try
           adding a city or country to your search.
         </p>
-        {fullSuggestion && fullSuggestion !== near && (
-          <div className="mt-4 flex flex-col items-center gap-2">
-            <p className="text-xs text-muted-foreground">Did you mean:</p>
-            <button
-              onClick={() => onSearch?.(fullSuggestion)}
-              className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:scale-95"
-              aria-label={`Search for ${fullSuggestion}`}
-            >
-              {fullSuggestion}
-            </button>
-          </div>
-        )}
       </div>
     );
   }

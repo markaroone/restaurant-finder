@@ -112,7 +112,7 @@ This app uses a **static code gate** — not user-based auth. A static access co
 - ✅ Loading, error, and empty states
 - ✅ `GET /api/execute` endpoint with code validation
 - ✅ `ll` query param for browser geolocation fallback
-- ✅ Ambiguous location detection with geoip suggestion
+- ✅ Ambiguous location detection with actionable error prompt
 - ✅ Heuristic fallback parser (LLM outage resilience)
 - ✅ Prompt injection detection and Unicode confusable normalization
 - ✅ Input validation (message + code) and rate limiting

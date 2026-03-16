@@ -95,12 +95,7 @@ describe('errorHandler — status code mapping', () => {
 
   test('AmbiguousLocationError → 400', () => {
     const { req, res, next, getStatus } = createMocks();
-    errorHandler(
-      new AmbiguousLocationError('Springfield', 'Springfield, IL'),
-      req,
-      res,
-      next,
-    );
+    errorHandler(new AmbiguousLocationError('Springfield'), req, res, next);
     expect(getStatus()).toBe(400);
   });
 
@@ -195,19 +190,13 @@ describe('errorHandler — trace ID', () => {
 // ─── Frontend-Critical Meta Fields ───────────────────────────────────
 
 describe('errorHandler — frontend-critical meta', () => {
-  test('AmbiguousLocationError includes near and suggestion in meta', () => {
+  test('AmbiguousLocationError includes near in meta', () => {
     const { req, res, next, getBody } = createMocks();
-    errorHandler(
-      new AmbiguousLocationError('Springfield', 'Springfield, IL'),
-      req,
-      res,
-      next,
-    );
+    errorHandler(new AmbiguousLocationError('Springfield'), req, res, next);
 
     const body = getBody();
     expect(body.meta).toBeDefined();
     expect(body.meta.near).toBe('Springfield');
-    expect(body.meta.suggestion).toBe('Springfield, IL');
   });
 });
 

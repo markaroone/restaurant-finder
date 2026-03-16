@@ -19,8 +19,6 @@ type RestaurantListProps = {
   error: Error | null;
   hasSearched: boolean;
   onRetry: () => void;
-  /** Called with the suggestion string when the user clicks a "Did you mean?" chip. */
-  onSearch?: (query: string) => void;
 };
 
 /**
@@ -37,7 +35,6 @@ export const RestaurantList = ({
   error,
   hasSearched,
   onRetry,
-  onSearch,
 }: RestaurantListProps): ReactElement => {
   if (isLoading)
     return (
@@ -49,7 +46,7 @@ export const RestaurantList = ({
   if (isError && error !== null)
     return (
       <div role="region" aria-live="polite" aria-label="Search results">
-        <ErrorDisplay error={error} onRetry={onRetry} onSearch={onSearch} />
+        <ErrorDisplay error={error} onRetry={onRetry} />
       </div>
     );
 
