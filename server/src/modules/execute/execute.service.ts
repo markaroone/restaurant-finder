@@ -1,17 +1,13 @@
-import {
-  AmbiguousLocationError,
-  BadRequestError,
-} from '@/common/utils/api-errors';
+import { BadRequestError } from '@/common/utils/api-errors';
 import { logger } from '@/common/utils/logger';
 import { ExecuteResponse, SearchParams } from '@/modules/execute/execute.types';
 import {
   buildDistanceLabel,
-  resolveCountryFromIp,
   resolveLocation,
   sanitizePlaceholderNear,
   transformResults,
 } from '@/modules/execute/execute.util';
-import { FoursquarePlace, searchRestaurants } from '@/services/foursquare';
+import { searchRestaurants } from '@/services/foursquare';
 import {
   detectInjection,
   parseMessage,
@@ -72,31 +68,10 @@ export const executeSearch = async (
   );
 
   // ─── Step 3: Foursquare Search ───────────────────────────────────────
-  let rawResults: FoursquarePlace[];
-  try {
-    rawResults = await searchRestaurants(
-      searchParams,
-      hasNear ? undefined : resolvedLL,
-    );
-  } catch (error) {
-    // Enrich AMBIGUOUS_LOCATION with geoip suggestion before re-throwing.
-    // The suggestion helps the frontend render "Did you mean: [near], [country]?"
-    if (error instanceof AmbiguousLocationError) {
-      const country = resolveCountryFromIp(clientIp);
-      const suggestion =
-        country !== null && country !== undefined
-          ? `${searchParams.near}, ${country}`
-          : searchParams.near;
-      logger.warn(
-        { near: searchParams.near, suggestion },
-        '🗺️  Rethrowing AMBIGUOUS_LOCATION with geoip suggestion',
-      );
-      throw new AmbiguousLocationError(searchParams.near, suggestion, {
-        query: searchParams.query,
-      });
-    }
-    throw error;
-  }
+  const rawResults = await searchRestaurants(
+    searchParams,
+    hasNear ? undefined : resolvedLL,
+  );
 
   // ─── Step 4: Transform + Response ────────────────────────────────────
   const results = transformResults(rawResults);

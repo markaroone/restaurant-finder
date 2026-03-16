@@ -291,7 +291,7 @@ Implement a **three-tier location priority chain**:
 - Local development on `127.0.0.1` / `::1` will skip IP geolocation (private IPs don't resolve). Browser geolocation covers this.
 - The MaxMind DB in `geoip-lite` is bundled and updated periodically with new npm versions. Not real-time accurate.
 
-> **Amendment (2026-03-15):** A fourth path was added alongside the three-tier chain: when Tier 1 (`near`) is provided but Foursquare cannot geocode it (ambiguous district abbreviation), the request now follows the `AMBIGUOUS_LOCATION` error path — see [ADR-019](#adr-019-two-layer-ambiguous-location-fix). `geoip-lite` is also used in that path to derive the country-based suggestion string.
+> **Amendment (2026-03-15):** A fourth path was added alongside the three-tier chain: when Tier 1 (`near`) is provided but Foursquare cannot geocode it (ambiguous district abbreviation), the request now follows the `AMBIGUOUS_LOCATION` error path — see [ADR-019](#adr-019-two-layer-ambiguous-location-fix). The GeoIP suggestion enrichment was later removed in [ADR-021](#adr-021-remove-did-you-mean-suggestion-chip) — `geoip-lite` is now only used for Tier 3 location fallback.
 
 ---
 
@@ -308,12 +308,12 @@ The original `ErrorDisplay` component showed a single alarming red error panel f
 
 Use **four-tier error display** based on error type (updated 2026-03-15 — see [ADR-019](#adr-019-two-layer-ambiguous-location-fix)):
 
-| Tier               | Condition                                      | Icon          | Style                    | Message                                                   |
-| ------------------ | ---------------------------------------------- | ------------- | ------------------------ | --------------------------------------------------------- |
-| Ambiguous location | `400` + `meta.reason === 'AMBIGUOUS_LOCATION'` | MapPin        | Subtle gray text         | "Couldn't pinpoint X. Did you mean: X, Philippines?" chip |
-| Missing location   | `400` + `meta.reason === 'MISSING_LOCATION'`   | MapPinOff     | Subtle gray text         | "Include a city, or enable location access"               |
-| Bad request        | `400` (other)                                  | SearchX       | Subtle gray text         | "Try something like 'sushi in downtown LA'"               |
-| Server error       | `500`, network errors                          | AlertTriangle | Red panel + retry button | Error details + "Try again"                               |
+| Tier               | Condition                                      | Icon          | Style                    | Message                                                                                                           |
+| ------------------ | ---------------------------------------------- | ------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Ambiguous location | `400` + `meta.reason === 'AMBIGUOUS_LOCATION'` | MapPin        | Subtle gray text         | "Couldn't pinpoint X. Try adding a city or country" (see [ADR-021](#adr-021-remove-did-you-mean-suggestion-chip)) |
+| Missing location   | `400` + `meta.reason === 'MISSING_LOCATION'`   | MapPinOff     | Subtle gray text         | "Include a city, or enable location access"                                                                       |
+| Bad request        | `400` (other)                                  | SearchX       | Subtle gray text         | "Try something like 'sushi in downtown LA'"                                                                       |
+| Server error       | `500`, network errors                          | AlertTriangle | Red panel + retry button | Error details + "Try again"                                                                                       |
 
 ### Rationale
 
@@ -936,5 +936,63 @@ Implement fixes for four vulnerabilities:
 - `AGENTS.md` updated with explicit commit body format rules.
 
 ---
+
+---
+
+## ADR-021: Remove "Did you mean?" Suggestion Chip
+
+**Status:** Accepted
+**Date:** 2026-03-17
+
+### Context
+
+ADR-019 introduced a two-layer ambiguous location fix: (1) LLM district expansion (e.g., "BGC" → "Bonifacio Global City, Taguig, Philippines") and (2) a frontend "Did you mean?" chip that appended the user's GeoIP-derived country to unresolvable locations (e.g., "xyztown" → "xyztown, Philippines"). The chip called Foursquare with the enriched string and triggered a new search.
+
+Empirical testing against the local API revealed a problem: **real ambiguous locations don't trigger the suggestion path**.
+
+| Query                    | LLM `near` output | Foursquare  | Result     |
+| ------------------------ | ----------------- | ----------- | ---------- |
+| "pizza in springfield"   | `"Springfield"`   | ✅ accepted | 20 results |
+| "ramen in richmond"      | `"Richmond"`      | ✅ accepted | 10 results |
+| "tacos in springfield"   | `"Springfield"`   | ✅ accepted | 20 results |
+| "sushi in richmond"      | `"Richmond"`      | ✅ accepted | 20 results |
+| "burgers in springfield" | `"Springfield"`   | ✅ accepted | 20 results |
+| "pasta in richmond"      | `"Richmond"`      | ✅ accepted | 20 results |
+
+**0% failure rate.** Foursquare's built-in geocoder handles multi-candidate locations on its own (likely by proximity or popularity). The LLM's Layer 1 expansion handles abbreviations like "BGC." The `AMBIGUOUS_LOCATION` error only fires when Foursquare **completely rejects** the location — which in practice means **fake/nonexistent locations** like "xyztown."
+
+When the suggestion chip appends a country to a fake location ("xyztown, Philippines"), Foursquare's lenient geocoder accepts the country part and returns results scattered across the entire country (distances of 120-140+ km). This is misleading — it gives the false impression that "xyztown" was found.
+
+### Decision
+
+Remove the "Did you mean?" suggestion chip entirely. Keep the "We couldn't pinpoint X. Try adding a city or country" error message as a simple, non-interactive prompt.
+
+### Rationale
+
+- **The suggestion solves a problem that doesn't exist in practice** — real ambiguous locations (Springfield, Richmond, BGC) are already handled by the LLM + Foursquare pipeline
+- **When the suggestion fires, it makes things worse** — appending a country to a fake location tricks Foursquare into returning scattered, irrelevant results
+- **Without a geocoding validation step** (e.g., Google Maps Geocoding API), we can't distinguish "real but ambiguous" from "completely fake" — so the suggestion can never be reliable
+- **Simpler is better** — a clean error message that says "add a city or country" is more honest than a suggestion that produces misleading results
+
+### What Was Removed
+
+| Component             | Change                                              |
+| --------------------- | --------------------------------------------------- |
+| `error-display.tsx`   | Removed suggestion chip UI and `onSearch` prop      |
+| `restaurant-list.tsx` | Removed `onSearch` prop threading                   |
+| `search-content.tsx`  | Removed `handleSuggestionSearch` callback           |
+| `search-bar.tsx`      | Removed `useEffect` sync for external store changes |
+
+### What Was Kept
+
+- The `AmbiguousLocationError` class is **kept but simplified** — now takes only `near` (removed `suggestion` and `meta` params)
+- The `isAmbiguousLocationError()` type guard is **unchanged** — the frontend still detects and renders a dedicated error message for this case
+- `geoip-lite` remains in the project **for Tier 3 location fallback** (IP → lat/lng) — only the suggestion enrichment path was removed
+
+### Consequences
+
+- Users who search for a genuinely unresolvable location see a clean error prompt instead of misleading results
+- If a geocoding API is added in the future, the suggestion chip could be re-introduced with validated locations
+- The `error-guards.ts` type guards remain useful for differentiating error types in the UI
 
 _More ADRs will be added during development as decisions emerge._

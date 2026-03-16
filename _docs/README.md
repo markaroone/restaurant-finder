@@ -350,7 +350,7 @@ client/
 │   │   ├── search-content.tsx              # Layout + results orchestration
 │   │   ├── suggestion-chips.tsx            # Dynamic search suggestion pills
 │   │   ├── loading-skeleton.tsx            # Skeleton cards while fetching
-│   │   ├── error-display.tsx               # Error UI (incl. AMBIGUOUS_LOCATION chip)
+│   │   ├── error-display.tsx               # Error UI (four-tier: ambiguous, missing, bad request, server)
 │   │   └── empty-state.tsx                 # Initial/empty state UI
 │   ├── hooks/
 │   │   └── use-search-restaurants.ts       # TanStack Query hook
