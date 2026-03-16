@@ -2,7 +2,8 @@
 
 A full-stack application that lets users find restaurants by typing a natural language request. Type something like _"cheap sushi in downtown LA that's open now"_ and the app does the rest.
 
-**Live demo:** `<deployed URL — coming soon>`
+**Live demo:** [restaurant-finder-production-c728.up.railway.app](https://restaurant-finder-production-c728.up.railway.app)
+**API endpoint:** [restaurant-finder-production.up.railway.app](https://restaurant-finder-production.up.railway.app/api/execute?message=sushi+in+LA&code=pioneerdevai)
 
 ---
 
