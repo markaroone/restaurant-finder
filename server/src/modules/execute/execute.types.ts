@@ -24,10 +24,7 @@ export type TransformedRestaurant = {
   name: string;
   address: string;
   categories: { name: string; icon: string }[];
-  price: number | null;
-  rating: number | null;
   distance: number | null;
-  hours: { openNow: boolean; display: string } | null;
   location: { lat: number; lng: number } | null;
   link: string | null;
 };

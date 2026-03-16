@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
+import { UpstreamError } from '@/common/utils/api-errors';
 import type { SearchParams } from '@/modules/execute/execute.types';
 import type { FoursquarePlace } from '@/services/foursquare';
-import { UpstreamError } from '@/common/utils/api-errors';
 
 // ─── Mock modules BEFORE importing the service ──────────────────────
 
@@ -131,10 +131,7 @@ describe('executeSearch — result transformation', () => {
           icon: 'https://ss3.4sqi.net/img/categories_v2/food/sushi_64.png',
         },
       ],
-      price: null,
-      rating: null,
       distance: 500,
-      hours: null,
       location: { lat: 34.0522, lng: -118.2437 },
       link: 'https://foursquare.com/v/test',
     });

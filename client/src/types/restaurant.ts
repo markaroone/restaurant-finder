@@ -18,10 +18,7 @@ export type Restaurant = {
   name: string;
   address: string;
   categories: RestaurantCategory[];
-  price: number | null;
-  rating: number | null;
   distance: number | null;
-  hours: { openNow: boolean; display: string } | null;
   location: RestaurantLocation | null;
   link: string | null;
 };

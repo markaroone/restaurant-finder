@@ -3,13 +3,12 @@ import {
   BadRequestError,
 } from '@/common/utils/api-errors';
 import { logger } from '@/common/utils/logger';
-import { PLACEHOLDER_LOCATIONS } from '@/modules/execute/execute.constants';
-import { ExecuteResponse } from '@/modules/execute/execute.types';
+import { ExecuteResponse, SearchParams } from '@/modules/execute/execute.types';
 import {
   buildDistanceLabel,
-  LocationSource,
   resolveCountryFromIp,
-  resolveIpLocation,
+  resolveLocation,
+  sanitizePlaceholderNear,
   transformResults,
 } from '@/modules/execute/execute.util';
 import { FoursquarePlace, searchRestaurants } from '@/services/foursquare';
@@ -38,10 +37,10 @@ export const executeSearch = async (
   ll?: string,
   clientIp?: string,
 ): Promise<ExecuteResponse> => {
-  // Step 1: Injection pre-screen + LLM parsing (with heuristic fallback)
+  // ─── Step 1: Injection Pre-screen + LLM Parsing ──────────────────────
   detectInjection(message);
 
-  let searchParams: Awaited<ReturnType<typeof parseMessage>>;
+  let searchParams: SearchParams;
   let parsedBy: 'llm' | 'heuristic' = 'llm';
 
   try {
@@ -59,46 +58,20 @@ export const executeSearch = async (
     parsedBy = 'heuristic';
   }
 
+  logger.info({ searchParams }, '🔍 Search parameters');
+
   // Sanitize placeholder locations the LLM sometimes produces
   // (e.g., "near me" → near: "current location"). Foursquare can't resolve these.
-  if (PLACEHOLDER_LOCATIONS.includes(searchParams.near.toLowerCase().trim())) {
-    searchParams.near = '';
-  }
+  searchParams.near = sanitizePlaceholderNear(searchParams.near);
 
-  // Step 2: Resolve location — priority chain
-  const hasNear = searchParams.near.length > 0;
-  const hasLL = ll !== null && ll !== undefined && ll.length > 0;
+  // ─── Step 2: Location Resolution (three-tier priority chain) ─────────
+  const { resolvedLL, locationSource, hasNear } = resolveLocation(
+    searchParams.near,
+    ll,
+    clientIp,
+  );
 
-  // Track which tier resolved the location for the distance label
-  let locationSource: LocationSource = null;
-
-  if (hasNear) {
-    locationSource = 'near';
-  } else if (hasLL) {
-    locationSource = 'browser';
-  }
-
-  // Tier 3: IP-based geolocation (only if tiers 1 & 2 are empty)
-  let resolvedLL = ll;
-  if (!hasNear && !hasLL) {
-    const ipLL = resolveIpLocation(clientIp);
-    if (ipLL) {
-      resolvedLL = ipLL;
-      locationSource = 'ip';
-    }
-  }
-
-  const hasFallbackLL =
-    resolvedLL !== null && resolvedLL !== undefined && resolvedLL.length > 0;
-
-  if (!hasNear && !hasFallbackLL) {
-    throw new BadRequestError(
-      'Could not determine a location. Please include a city or area in your search, or allow location access in your browser.',
-      { reason: 'MISSING_LOCATION' },
-    );
-  }
-
-  // Step 3: Foursquare search — pass ll as fallback when near is empty
+  // ─── Step 3: Foursquare Search ───────────────────────────────────────
   let rawResults: FoursquarePlace[];
   try {
     rawResults = await searchRestaurants(
@@ -125,7 +98,7 @@ export const executeSearch = async (
     throw error;
   }
 
-  // Step 4: Transform
+  // ─── Step 4: Transform + Response ────────────────────────────────────
   const results = transformResults(rawResults);
 
   const distanceLabel = buildDistanceLabel(locationSource, searchParams.near);
