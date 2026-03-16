@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
+import { env } from '@/config/env';
 import {
   executeQuerySchema,
   searchParamsSchema,
@@ -10,7 +11,7 @@ import {
 describe('executeQuerySchema', () => {
   test('accepts a valid message', () => {
     const result = executeQuerySchema.safeParse({
-      query: { message: 'sushi in LA', code: 'pioneerdevai' },
+      query: { message: 'sushi in LA', code: env.API_ACCESS_CODE },
     });
     expect(result.success).toBe(true);
   });
@@ -19,7 +20,7 @@ describe('executeQuerySchema', () => {
     const result = executeQuerySchema.safeParse({
       query: {
         message: 'ramen near me',
-        code: 'pioneerdevai',
+        code: env.API_ACCESS_CODE,
         ll: '14.5547,121.0244',
       },
     });
@@ -31,42 +32,42 @@ describe('executeQuerySchema', () => {
 
   test('rejects empty message', () => {
     const result = executeQuerySchema.safeParse({
-      query: { message: '', code: 'pioneerdevai' },
+      query: { message: '', code: env.API_ACCESS_CODE },
     });
     expect(result.success).toBe(false);
   });
 
   test('rejects single-character message (min 2)', () => {
     const result = executeQuerySchema.safeParse({
-      query: { message: 'a', code: 'pioneerdevai' },
+      query: { message: 'a', code: env.API_ACCESS_CODE },
     });
     expect(result.success).toBe(false);
   });
 
   test('accepts two-character message', () => {
     const result = executeQuerySchema.safeParse({
-      query: { message: 'hi', code: 'pioneerdevai' },
+      query: { message: 'hi', code: env.API_ACCESS_CODE },
     });
     expect(result.success).toBe(true);
   });
 
   test('rejects message over 500 chars', () => {
     const result = executeQuerySchema.safeParse({
-      query: { message: 'x'.repeat(501), code: 'pioneerdevai' },
+      query: { message: 'x'.repeat(501), code: env.API_ACCESS_CODE },
     });
     expect(result.success).toBe(false);
   });
 
   test('rejects missing message', () => {
     const result = executeQuerySchema.safeParse({
-      query: { code: 'pioneerdevai' },
+      query: { code: env.API_ACCESS_CODE },
     });
     expect(result.success).toBe(false);
   });
 
   test('rejects invalid ll format', () => {
     const result = executeQuerySchema.safeParse({
-      query: { message: 'ramen', code: 'pioneerdevai', ll: 'not-coords' },
+      query: { message: 'ramen', code: env.API_ACCESS_CODE, ll: 'not-coords' },
     });
     expect(result.success).toBe(false);
   });
@@ -75,7 +76,7 @@ describe('executeQuerySchema', () => {
     const result = executeQuerySchema.safeParse({
       query: {
         message: 'tacos',
-        code: 'pioneerdevai',
+        code: env.API_ACCESS_CODE,
         ll: '-33.8688,151.2093',
       },
     });
@@ -84,7 +85,7 @@ describe('executeQuerySchema', () => {
 
   test('ll is optional — omitting it is valid', () => {
     const result = executeQuerySchema.safeParse({
-      query: { message: 'pizza in NYC', code: 'pioneerdevai' },
+      query: { message: 'pizza in NYC', code: env.API_ACCESS_CODE },
     });
     expect(result.success).toBe(true);
     if (result.success) {
