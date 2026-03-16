@@ -171,29 +171,28 @@ All errors follow [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807):
 
 ## Testing
 
-### Run all tests
+### How to run
 
 ```bash
 cd server && bun test
 ```
 
-49 tests, 3 suites, under 1 second. No network calls — all external services are mocked.
+66 tests, 4 suites, under 1 second. No network calls — all external services are mocked.
 
 ### What is tested
 
-| Area                                                  | What's covered                                                                                                                                                                                                                                               |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Input validation** (`execute.schema.test.ts`)       | Access code gate, `message` min (2) / max (500) length, `ll` coordinate format and regex, `price` range (1–4), `limit` range (1–50), `is_food_related` defaults                                                                                              |
-| **Result transformation** (`execute.service.test.ts`) | Full clean output shape, safe fallbacks for every missing Foursquare field (`name → "Unknown"`, `address → "Address unavailable"`, etc.), icon URL assembly from prefix + suffix + size                                                                      |
-| **Location priority** (`execute.service.test.ts`)     | LLM `near` takes priority over browser `ll`; browser `ll` used when `near` is empty; private IP with no location throws `MISSING_LOCATION`; placeholder strings ("near me", "current location", "my location") stripped and replaced by geolocation fallback |
-| **Heuristic fallback** (`execute.service.test.ts`)    | Heuristic parser fires when Gemini throws `UpstreamError`; `parsedBy` field correctly set to `"llm"` or `"heuristic"`                                                                                                                                        |
-| **Error propagation** (`execute.service.test.ts`)     | Foursquare `UpstreamError` propagates to caller; upstream errors don't get swallowed                                                                                                                                                                         |
-| **Response meta** (`execute.service.test.ts`)         | `resultCount`, `searchedAt`, `distanceLabel` contextual label ("away from {city}" vs "away from you"), `parsedBy` all correctly set                                                                                                                          |
+**Schema tests** (`execute.schema.test.ts`) — Covers validation of both incoming user query parameters (message length, required fields, optional `ll` format) and the LLM response search parameters schema (ensuring structured output from Gemini has valid `query`, `near`, `price`, `open_now`, `limit`, and `is_food_related` fields). These ensure we receive correct and predictable data from both the user input and the LLM output before they enter the pipeline.
+
+**Service tests** (`execute.service.test.ts`) — Covers the core `executeSearch` pipeline business logic: the location priority chain (LLM near → browser geolocation → IP fallback), Foursquare result transformation (raw API shape → clean client shape with safe fallbacks for missing fields), heuristic fallback behavior (graceful degradation when Gemini is unavailable), and placeholder location sanitization (stripping "near me" / "current location" from LLM output). The LLM and Foursquare services are mocked since we're testing the orchestration logic, not the external APIs.
+
+**Integration tests** (`execute.integration.test.ts`) — Tests the full HTTP request/response cycle through Express using `supertest`. Verifies authentication (401 for missing/wrong access code), input validation (422 for invalid messages), prompt injection detection (400 for known attack patterns using the real `detectInjection` function), success response shape, and upstream error propagation (502 when Foursquare/Gemini fails).
+
+**Error handler tests** (`error-handler.test.ts`) — Tests the global error handling middleware: every custom error class maps to the correct HTTP status code, all responses follow the RFC 7807 Problem Details format, meta/errors are included for application errors but not generic ones, trace IDs are correctly extracted from request headers, `AmbiguousLocationError` includes the `near` and `suggestion` fields the frontend relies on for its "Did you mean..." UI, and stack traces are verified to not leak in non-development environments (security).
 
 ### What is intentionally not tested
 
-- **Foursquare HTTP calls** — `searchRestaurants` is mocked in service tests. A real network integration test would require live credentials in CI and introduce unnecessary flakiness. The transformation and error-handling logic are tested independently of the HTTP layer.
-- **LLM output quality** — Gemini's ability to correctly interpret natural language is not unit-testable. The system prompt, few-shot examples, and retry logic are validated manually.
+- **LLM service (`parseMessage`)** and **Foursquare API client** — These depend on external APIs requiring network calls and API keys. They are mocked in the service and integration tests so we can test the orchestration logic around them.
+- **Injection guard regex patterns and heuristic NLP parser as standalone unit tests** — These are covered indirectly through the integration tests (injection detection over HTTP) and service tests (heuristic fallback path). Dedicated unit tests for these functions would require test process isolation due to Bun's `mock.module` sharing a single process across all test files, which was unnecessary for this scope.
 - **Frontend components** — No React unit tests. The UI is thin enough that manual testing and visual inspection cover the meaningful surface area.
 - **End-to-end tests** — No Playwright/Cypress. Covered by manual smoke tests against the deployed URL.
 
@@ -201,21 +200,27 @@ cd server && bun test
 
 ## Design Decisions & Tradeoffs
 
-| Decision                                       | Rationale                                                                                            |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| **LLM-first, heuristic fallback**              | Gemini gives best accuracy for natural language; heuristic catches outages and reduces hard failures |
-| **`near` string over raw coordinates**         | Foursquare's `near` handles fuzzy city names ("downtown LA") far better than raw lat/lng             |
-| **`fsq_category_ids` Food root filter**        | Without it Foursquare leaks supermarkets, hotels, and city landmarks into results                    |
-| **Client-side sorting (Relevance / Distance)** | Re-sorting needs no extra API call and doesn't break TanStack Query's structural caching             |
-| **RFC 7807 error format**                      | Machine-readable errors let the frontend and curl testers distinguish error types programmatically   |
-| **Exponential backoff with full jitter**       | Avoids thundering herd on Gemini retries; two attempts fit inside the 20s Express timeout budget     |
+| Decision                                             | Rationale                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **LLM-first, heuristic fallback**                    | Gemini gives best accuracy for natural language; heuristic catches outages and reduces hard failures                                                                                                                                                                                                                |
+| **`near` string over raw coordinates**               | Foursquare's `near` handles fuzzy city names ("downtown LA") far better than raw lat/lng                                                                                                                                                                                                                            |
+| **Location priority chain** (LLM → geolocation → IP) | Maximizes location accuracy while ensuring every request has a location. LLM understands "downtown LA"; browser geolocation gives precise coords; GeoIP is the last resort so the user never gets a "location required" error                                                                                       |
+| **Ambiguous location UX**                            | When Foursquare can't geocode a vague location like "Springfield," the backend returns a structured `AmbiguousLocationError` with a GeoIP-derived `suggestion`. The frontend renders a "Did you mean..." prompt instead of a generic error                                                                          |
+| **Client-side sorting (Relevance / Distance)**       | Foursquare returns results sorted by relevance by default, and we cap the fetch at 20 items, so re-sorting on the frontend requires no extra API call and doesn't break TanStack Query's structural caching. This highlights the most relevant results first while still letting users sort by distance client-side |
+| **RFC 7807 error format**                            | Machine-readable errors let the frontend and curl testers distinguish error types programmatically                                                                                                                                                                                                                  |
+| **Exponential backoff with full jitter**             | Avoids thundering herd on Gemini retries; two attempts fit inside the 20s Express timeout budget                                                                                                                                                                                                                    |
+| **No SSE streaming**                                 | Deferred real-time streaming of results. The current request/response cycle completes in ~2s which is acceptable. SSE would add complexity (connection management, partial rendering) for marginal UX gain at this scale                                                                                            |
+| **No secondary LLM fallback**                        | The heuristic parser handles Gemini downtime. Adding a second LLM (e.g., OpenAI) would add another API key dependency, cost, and latency without significantly improving reliability                                                                                                                                |
+| **No caching layer**                                 | No Redis or in-memory cache for LLM/Foursquare responses. Search queries are highly varied (long-tail natural language), making cache hit rates low. The added infrastructure wasn't justified for this scope                                                                                                       |
 
 ### Known Limitations
 
-- `price`, `rating`, and `hours` are always `null` — Foursquare premium fields, skipped per spec
-- No persistent storage — all queries are stateless
 - No pagination — results capped at `limit` (default 20, max 50)
-- Rate limiting is in-memory — resets on server restart
+- No user accounts or sessions — authentication is a static access code, not per-user
+- Single-language — LLM prompts and heuristic parser are English-only
+- Heuristic parser is significantly less accurate than the LLM — catches basic patterns but misses nuance (e.g., "somewhere fancy for a date night")
+- Distance is Foursquare-dependent — distances are from Foursquare's geocoded center, not the user's exact position (unless `ll` is provided)
+- No restaurant photos — Foursquare photos require premium tier
 
 ---
 
