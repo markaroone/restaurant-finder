@@ -2,7 +2,6 @@ import { GoogleGenAI } from '@google/genai';
 
 import { BadRequestError, UpstreamError } from '@/common/utils/api-errors';
 import { logger } from '@/common/utils/logger';
-import { sanitizeUnicode } from '@/common/utils/sanitize';
 import { env } from '@/config/env';
 import { searchParamsSchema } from '@/modules/execute/execute.schema';
 import { SearchParams } from '@/modules/execute/execute.types';
@@ -62,27 +61,7 @@ const isRetryableError = (error: unknown): boolean => {
   return true;
 };
 
-// ─── Validation Stage 1: Input Sanitization ──────────────────────────────────
-
-/**
- * Strips adversarial unicode characters and enforces a minimum length.
- * This is the first line of defense before the input ever reaches the LLM.
- *
- * @throws BadRequestError if the sanitized input is too short to be meaningful
- */
-const sanitizeInput = (message: string): string => {
-  const sanitized = sanitizeUnicode(message);
-
-  if (sanitized.length < 2) {
-    throw new BadRequestError(
-      "Your message doesn't contain enough readable text. Please try again with a food or restaurant query.",
-    );
-  }
-
-  return sanitized;
-};
-
-// ─── Validation Stage 2: LLM Structured Output ───────────────────────────────
+// ─── Validation Stage 1: LLM Structured Output ───────────────────────────────
 
 /**
  * Calls the Gemini API with a strict JSON schema, enforcing structured output.
@@ -174,28 +153,26 @@ const validateAndNormalize = (
  * Parses a natural language message into structured search parameters
  * using Google Gemini with structured output mode.
  *
- * Five-layer defense pipeline:
- *   Pre-screen — `detectInjection`   → regex catches known injection patterns
- *   Stage 1   — `sanitizeInput`      → strips adversarial unicode
- *   Stage 2   — `callLlm`            → Gemini SDK enforces JSON schema shape (+ token logging)
- *   Stage 3   — `validateAndNormalize` → Zod enforces business rules + food guard
- *   Post-gate — `guardOutput`        → checks for prompt leakage + PII in output
+ * Defense pipeline (sanitization + injection detection handled by middleware):
+ *   Middleware — Zod transforms sanitize input (confusables + unicode strip)
+ *   Middleware — `injectionGuard`   → regex catches known injection patterns
+ *   Stage 1   — `callLlm`          → Gemini SDK enforces JSON schema shape (+ token logging)
+ *   Stage 2   — `validateAndNormalize` → Zod enforces business rules + food guard
+ *   Post-gate — `guardOutput`       → checks for prompt leakage + PII in output
  *
- * @param message - The user's natural language search query
+ * @param message - The user's natural language search query (pre-sanitized by middleware)
  * @returns Validated SearchParams
  * @throws BadRequestError if parsing fails after retries
  * @throws UpstreamError if the Gemini API is unavailable
  */
 export const parseMessage = async (message: string): Promise<SearchParams> => {
-  const sanitized = sanitizeInput(message); // Stage 1
-
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      const raw = await callLlm(sanitized, attempt); // Stage 2
+      const raw = await callLlm(message, attempt); // Stage 1
 
-      const params = validateAndNormalize(raw, attempt); // Stage 3
+      const params = validateAndNormalize(raw, attempt); // Stage 2
 
       if (params) {
         guardOutput(params); // Post-gate

@@ -598,6 +598,8 @@ The sanitizer does **NOT** remove:
 - Edge case: a user who _intentionally_ uses combining marks in a legitimate way (e.g., Vietnamese tonal marks) could have them stripped. In practice, JavaScript regex `[\u0300-\u036F]` covers combining marks that overlay existing characters (Zalgo), not precomposed Vietnamese characters like `ệ` which are single code points.
 - The `SYSTEM_INSTRUCTION` was also expanded in this phase with emoji handling, location translation, expanded `open_now` triggers, and contradiction handling rules — these are prompt tuning, not architectural decisions, so they are tracked in the Phase 4.11 changelog rather than a separate ADR.
 
+> **Amendment (2026-03-18):** The `sanitizeUnicode()` function was moved from `llm.service.ts` (where it ran inside `parseMessage`) to a Zod `.transform()` in the execute query schema. Unicode sanitization now runs at the validation middleware layer, not in the LLM service. See [ADR-022](#adr-022-middleware-based-sanitization--injection-detection-pipeline).
+
 ---
 
 ## ADR-015: Five-Layer Defense Pipeline (Prompt Injection + Output Filtering)
@@ -661,6 +663,8 @@ guardOutput(params)             Post-gate: checks for prompt leakage + PII in ou
 - `guardOutput` checks only `query` and `near` fields. Other fields (`min_price`, `max_price`, `open_now`, `limit`) are numeric/boolean and inherently safe from text-based leakage.
 - Frontend error handling already covers the new `PROMPT_INJECTION` and `OUTPUT_FILTERED` reason codes via the existing generic 400 handler (`SearchX` icon + rephrase hint). No frontend changes were needed.
 - Test count increased from 38 to 42 (4 new injection detection integration tests).
+
+> **Amendment (2026-03-18):** `detectInjection` and `INJECTION_PATTERNS` were moved out of `llm.guards.ts` and inlined into a dedicated `injectionGuard` middleware in the execute module. The confusables normalization was moved to a Zod `.transform()` in the schema, so the middleware receives pre-normalized text. `llm.guards.ts` now only contains `guardOutput` (output filtering). The "five-layer" pipeline is preserved but restructured — sanitization and injection detection are now middleware concerns, not LLM service concerns. See [ADR-022](#adr-022-middleware-based-sanitization--injection-detection-pipeline).
 
 ---
 
@@ -996,3 +1000,73 @@ Remove the "Did you mean?" suggestion chip entirely. Keep the "We couldn't pinpo
 - The `error-guards.ts` type guards remain useful for differentiating error types in the UI
 
 _More ADRs will be added during development as decisions emerge._
+
+---
+
+## ADR-022: Middleware-Based Sanitization & Injection Detection Pipeline
+
+**Status:** Accepted
+**Date:** 2026-03-18
+
+### Context
+
+A Unicode bypass vulnerability was discovered in the prompt injection detection pipeline. The existing `detectInjection` function in `llm.guards.ts` normalized confusables _before_ regex matching, but `sanitizeUnicode` (which strips combining diacritical marks, zero-width characters, etc.) ran _after_ injection detection — inside `parseMessage`. This ordering allowed an attacker to obfuscate injection patterns with combining marks (e.g., `"ĩg̃ñõr̃ẽ ãl̃l̃ p̃r̃ẽṽĩõũs̃ ĩñs̃t̃r̃ũc̃t̃ĩõñs̃"`) to bypass detection, since the marks survived confusable normalization but were stripped later by `sanitizeUnicode`.
+
+Additionally, both sanitization and injection detection lived inside the LLM service layer, making the service hard to unit test without mocking security logic and coupling multiple concerns.
+
+### Decision
+
+Refactor the security pipeline into three middleware-layer operations that run _before_ the controller:
+
+```text
+Middleware chain:
+  rate limit → auth → validate (+ sanitize) → injection guard → controller
+
+Validation (Zod transforms in execute.schema.ts):
+  .max(500)                        — reject oversized payloads
+  .transform(normalizeConfusables) — homoglyphs → ASCII
+  .transform(sanitizeUnicode)      — strip Zalgo, zero-width, null bytes
+  .pipe(.min(2))                   — reject empty-after-sanitization inputs
+
+Injection Guard (sanitize.middleware.ts):
+  INJECTION_PATTERNS.some(p => p.test(message))  — on fully clean text
+```
+
+**Key changes:**
+
+| Before                                                                  | After                                                         |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `sanitizeUnicode` in `llm.service.ts` (inside `parseMessage`)           | Zod `.transform()` in `execute.schema.ts`                     |
+| `removeConfusables` in `llm.guards.ts` (inside `detectInjection`)       | Zod `.transform(normalizeConfusables)` in `execute.schema.ts` |
+| `detectInjection` in `llm.guards.ts` (called from `execute.service.ts`) | `injectionGuard` middleware in `sanitize.middleware.ts`       |
+| `llm.guards.ts` had both input guards and output guards                 | `llm.guards.ts` only has `guardOutput` (output filtering)     |
+| Rate limiter after auth                                                 | Rate limiter before auth (protects auth from brute-force)     |
+
+### Rationale
+
+- **Fixes the Unicode bypass** — Combining marks are now stripped by `sanitizeUnicode` (via Zod transform) _before_ injection detection runs. The middleware receives fully sanitized text, so combining-mark obfuscation no longer works.
+- **Zod `.transform()` is the right integration point** — The existing `validateRequest` middleware already writes Zod-parsed values back to `req.query` via `Object.defineProperty` (Express 5 compatible). Adding `.transform()` calls to the schema is zero additional middleware, and the sanitized value is automatically available to all downstream handlers.
+- **Separation of concerns** — The LLM service (`llm.service.ts`) and execute service (`execute.service.ts`) are now fully decoupled from validation logic. They receive pre-sanitized, pre-validated input and focus solely on LLM parsing and orchestration.
+- **Testability** — Each layer is independently testable:
+  - `normalizeConfusables` and `sanitizeUnicode` are pure functions with unit tests
+  - `injectionGuard` middleware has its own test suite with Express mocks
+  - `guardOutput` has its own test suite
+  - `execute.service.ts` tests no longer need to mock `detectInjection`
+- **Rate limiter before auth** — Moving the rate limiter first is a security best practice: it throttles brute-force attacks on the access code and protects all downstream middleware from resource exhaustion.
+
+### Alternatives Considered
+
+| Alternative                                            | Why Rejected                                                                                                                                                                             |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Keep `detectInjection` as a separate imported function | Only called in one place — the indirection adds no value. Inlining keeps the execute module self-contained.                                                                              |
+| Separate middleware for sanitization                   | Zod transforms are cleaner — the transform is declarative, runs during validation, and reuses the existing `validateRequest` middleware.                                                 |
+| `Promise.all` for parallel regex matching              | Regex `.test()` is synchronous CPU work (~microseconds). Async overhead would be orders of magnitude slower than the regex itself. `.some()` short-circuits, which `Promise.all` cannot. |
+
+### Consequences
+
+- **`llm.guards.ts`** is simplified to only `guardOutput` — input-side guards now live entirely in the execute module.
+- **`confusables` import** is now in `common/utils/sanitize.ts` (shared utility) instead of `llm.guards.ts`.
+- **`llm/index.ts`** no longer exports `detectInjection`.
+- **Test count** increased from 46 to 88 — 42 new tests across `sanitize.test.ts` (14), `sanitize.middleware.test.ts` (20), and `llm.guards.test.ts` (8).
+- The `INJECTION_PATTERNS` array is now in `sanitize.middleware.ts`. If new patterns are needed, they are added there.
+- This ADR supersedes the input-side portions of [ADR-015](#adr-015-five-layer-defense-pipeline-prompt-injection--output-filtering). The defense pipeline is preserved but restructured — the five layers still exist, but sanitization and injection detection are now middleware concerns, not LLM service concerns.
