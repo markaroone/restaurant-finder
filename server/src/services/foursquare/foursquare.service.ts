@@ -71,18 +71,15 @@ const buildSearchParams = (
     fsq_category_ids: FOOD_CATEGORY_ID,
   };
 
-  if (params.min_price !== undefined && params.min_price !== null) {
+  if (params.min_price !== null)
     searchParams.min_price = String(params.min_price);
-  }
 
-  if (params.max_price !== undefined && params.max_price !== null) {
+  if (params.max_price !== null)
     searchParams.max_price = String(params.max_price);
-  }
-
   // Priority: LLM-extracted "near" > browser geolocation "ll"
   if (params.near.length > 0) {
     searchParams.near = params.near;
-  } else if (ll !== null && ll !== undefined) {
+  } else if (ll !== undefined) {
     searchParams.ll = ll;
   }
 

@@ -334,31 +334,31 @@ Fixed a bug where the "Did you mean?" chip for ambiguous locations never appeare
 
 ## Changelog
 
-| Date       | Change                                                                                                                                            |
-| :--------- | :------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2026-03-12 | Initial SDD generation. Full planning phase complete.                                                                                             |
-| 2026-03-12 | Phase 1 complete. Server & client scaffolds passing all checks. Git initialized. `docs/` renamed to `_docs/`.                                     |
-| 2026-03-13 | Phase 2 Backend Core merged to `main`.                                                                                                            |
-| 2026-03-13 | Phase 3 Frontend Core merged to `main`.                                                                                                           |
-| 2026-03-13 | Phase 3.5 Hardening: geolocation fallback, geoip-lite, three-tier error display, cursor:pointer, ENV.API_CODE                                     |
-| 2026-03-14 | Phase 4 Testing: 38 backend tests (schema, service, integration), 72 assertions.                                                                  |
-| 2026-03-14 | Phase 4.5 Security: access code env var, per-route rate limiting, conditional error meta. ADR-010, ADR-011.                                       |
-| 2026-03-14 | Phase 4.6 Relevance: IP geo guard, prompt fixes (limit, negation, non-Latin). ADR-012.                                                            |
-| 2026-03-14 | Phase 4.7 Resiliency: Gemini 15s abort, Express 20s timeout, GatewayTimeoutError. ADR-013.                                                        |
-| 2026-03-14 | Phase 4.8 Frontend State: query key geolocation fix, purified API function, staleTime docs.                                                       |
-| 2026-03-14 | Phase 4.9 UI Polish & Client Sorting: dynamic sorting dropdown (Relevance/Distance) and reactivity fixes.                                         |
-| 2026-03-15 | Phase 4.10 UX Audit: 8 a11y fixes (ARIA, focus, touch targets) and dynamic time-based quick search pills.                                         |
-| 2026-03-15 | Phase 4.11 NLP Fuzzing: Unicode sanitizer, prompt hardening (emoji, location i18n, slang, contradictions). ADR-014.                               |
-| 2026-03-15 | Phase 4.12 Guardrails: injection detection, output filtering, token monitoring. Pipeline → five-layer defense. ADR-015.                           |
-| 2026-03-15 | Phase 4.13 UI Transparency: Search parameters pill badges and search bar clear button.                                                            |
-| 2026-03-15 | Phase 4.14 Few-Shot Prompting: 6 examples in SYSTEM_INSTRUCTION for edge case accuracy. ADR-016.                                                  |
-| 2026-03-15 | Phase 4.15 NER Fallback: heuristic parser + service folder refactoring (`llm/`, `foursquare/`). ADR-017.                                          |
-| 2026-03-15 | Phase 4.16 Exponential Backoff: full jitter, `isRetryableError`, timeout budget rebalanced 15s→8s/call. ADR-018.                                  |
-| 2026-03-15 | Phase 4.17 Test Coverage: expanded execute tests (49/49 passing).                                                                                 |
-| 2026-03-15 | Phase 4.18 Ambiguous Location Fix: LLM district expansion rule (Layer 1) + `AmbiguousLocationError` + "Did you mean?" chip UI (Layer 2). ADR-019. |
-| 2026-03-15 | Phase 4.19 Security Hardening: trust proxy, CORS null-origin block, ReDoS regex fix, Unicode confusables normalization. ADR-020.                  |
-| 2026-03-16 | Phase 5 Deployment: deployed backend and frontend to Railway, updated README with deployed URLs.                                                  |
-| 2026-03-16 | Phase 4.20 Price Range: `min_price`/`max_price` across backend, frontend, tests, and docs. `formatPriceLabel()` utility extracted.                |
-| 2026-03-17 | Phase 4.21 Error Guards: fixed ambiguous location bug (`meta.reason` → `error.code`), extracted type-guard functions to `error-guards.ts`.        |
-| 2026-03-17 | Phase 4.22 Remove Suggestion Chip: removed "Did you mean?" chip + GeoIP enrichment. Simplified `AmbiguousLocationError`. ADR-021.                |
+| Date       | Change                                                                                                                                               |
+| :--------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-03-12 | Initial SDD generation. Full planning phase complete.                                                                                                |
+| 2026-03-12 | Phase 1 complete. Server & client scaffolds passing all checks. Git initialized. `docs/` renamed to `_docs/`.                                        |
+| 2026-03-13 | Phase 2 Backend Core merged to `main`.                                                                                                               |
+| 2026-03-13 | Phase 3 Frontend Core merged to `main`.                                                                                                              |
+| 2026-03-13 | Phase 3.5 Hardening: geolocation fallback, geoip-lite, three-tier error display, cursor:pointer, ENV.API_CODE                                        |
+| 2026-03-14 | Phase 4 Testing: 38 backend tests (schema, service, integration), 72 assertions.                                                                     |
+| 2026-03-14 | Phase 4.5 Security: access code env var, per-route rate limiting, conditional error meta. ADR-010, ADR-011.                                          |
+| 2026-03-14 | Phase 4.6 Relevance: IP geo guard, prompt fixes (limit, negation, non-Latin). ADR-012.                                                               |
+| 2026-03-14 | Phase 4.7 Resiliency: Gemini 15s abort, Express 20s timeout, GatewayTimeoutError. ADR-013.                                                           |
+| 2026-03-14 | Phase 4.8 Frontend State: query key geolocation fix, purified API function, staleTime docs.                                                          |
+| 2026-03-14 | Phase 4.9 UI Polish & Client Sorting: dynamic sorting dropdown (Relevance/Distance) and reactivity fixes.                                            |
+| 2026-03-15 | Phase 4.10 UX Audit: 8 a11y fixes (ARIA, focus, touch targets) and dynamic time-based quick search pills.                                            |
+| 2026-03-15 | Phase 4.11 NLP Fuzzing: Unicode sanitizer, prompt hardening (emoji, location i18n, slang, contradictions). ADR-014.                                  |
+| 2026-03-15 | Phase 4.12 Guardrails: injection detection, output filtering, token monitoring. Pipeline → five-layer defense. ADR-015.                              |
+| 2026-03-15 | Phase 4.13 UI Transparency: Search parameters pill badges and search bar clear button.                                                               |
+| 2026-03-15 | Phase 4.14 Few-Shot Prompting: 6 examples in SYSTEM_INSTRUCTION for edge case accuracy. ADR-016.                                                     |
+| 2026-03-15 | Phase 4.15 NER Fallback: heuristic parser + service folder refactoring (`llm/`, `foursquare/`). ADR-017.                                             |
+| 2026-03-15 | Phase 4.16 Exponential Backoff: full jitter, `isRetryableError`, timeout budget rebalanced 15s→8s/call. ADR-018.                                     |
+| 2026-03-15 | Phase 4.17 Test Coverage: expanded execute tests (49/49 passing).                                                                                    |
+| 2026-03-15 | Phase 4.18 Ambiguous Location Fix: LLM district expansion rule (Layer 1) + `AmbiguousLocationError` + "Did you mean?" chip UI (Layer 2). ADR-019.    |
+| 2026-03-15 | Phase 4.19 Security Hardening: trust proxy, CORS null-origin block, ReDoS regex fix, Unicode confusables normalization. ADR-020.                     |
+| 2026-03-16 | Phase 5 Deployment: deployed backend and frontend to Railway, updated README with deployed URLs.                                                     |
+| 2026-03-16 | Phase 4.20 Price Range: `min_price`/`max_price` across backend, frontend, tests, and docs. `formatPriceLabel()` utility extracted.                   |
+| 2026-03-17 | Phase 4.21 Error Guards: fixed ambiguous location bug (`meta.reason` → `error.code`), extracted type-guard functions to `error-guards.ts`.           |
+| 2026-03-17 | Phase 4.22 Remove Suggestion Chip: removed "Did you mean?" chip + GeoIP enrichment. Simplified `AmbiguousLocationError`. ADR-021.                    |
 | 2026-03-18 | Limit refactor: removed `limit` from LLM extraction and Zod validation. Now server-controlled via `DEFAULT_RESULT_LIMIT = 20` in `llm.constants.ts`. |

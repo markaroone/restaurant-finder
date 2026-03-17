@@ -49,17 +49,17 @@ flowchart LR
 
 ### Transformed Restaurant Response (What we return to the client)
 
-| Field        | Type                                            | Description                            |
-| ------------ | ----------------------------------------------- | -------------------------------------- |
-| `id`         | `string`                                        | Foursquare `fsq_place_id`              |
-| `name`       | `string`                                        | Restaurant name                        |
-| `address`    | `string`                                        | Formatted address                      |
-| `categories` | `{ name: string; icon: string }[]`              | Cuisine/category labels with icon URLs |
+| Field        | Type                               | Description                            |
+| ------------ | ---------------------------------- | -------------------------------------- |
+| `id`         | `string`                           | Foursquare `fsq_place_id`              |
+| `name`       | `string`                           | Restaurant name                        |
+| `address`    | `string`                           | Formatted address                      |
+| `categories` | `{ name: string; icon: string }[]` | Cuisine/category labels with icon URLs |
 
-| `rating`     | `number \| null`                                | Rating (if available from free tier)   |
-| `distance`   | `number \| null`                                | Distance in meters from search center  |
-| `hours`      | `{ openNow: boolean; display: string } \| null` | Hours information                      |
-| `location`   | `{ lat: number; lng: number } \| null`          | Coordinates (for future map view)      |
+| `rating` | `number \| null` | Rating (if available from free tier) |
+| `distance` | `number \| null` | Distance in meters from search center |
+| `hours` | `{ openNow: boolean; display: string } \| null` | Hours information |
+| `location` | `{ lat: number; lng: number } \| null` | Coordinates (for future map view) |
 
 ## API Endpoint
 
@@ -197,16 +197,16 @@ flowchart TD
 
 **Parameter mapping:**
 
-| SearchParams field | Foursquare param                                        |
-| ------------------ | ------------------------------------------------------- |
-| `query`            | `query`                                                 |
-| `near`             | `near` (or `ll` if near is empty)                       |
-| `min_price`        | `min_price` (only when not null)                        |
-| `max_price`        | `max_price` (only when not null)                        |
-| `open_now`         | `open_now`                                              |
-| _(always set)_     | `limit=20` (server-controlled via `DEFAULT_RESULT_LIMIT`)|
-| _(always set)_     | `sort=RELEVANCE`                                        |
-| _(always set)_     | `fsq_category_ids=4d4b7105d754a06374d81259` (Food root) |
+| SearchParams field | Foursquare param                                          |
+| ------------------ | --------------------------------------------------------- |
+| `query`            | `query`                                                   |
+| `near`             | `near` (or `ll` if near is empty)                         |
+| `min_price`        | `min_price` (only when not null)                          |
+| `max_price`        | `max_price` (only when not null)                          |
+| `open_now`         | `open_now`                                                |
+| _(always set)_     | `limit=20` (server-controlled via `DEFAULT_RESULT_LIMIT`) |
+| _(always set)_     | `sort=RELEVANCE`                                          |
+| _(always set)_     | `fsq_category_ids=4d4b7105d754a06374d81259` (Food root)   |
 
 > [!TIP]
 > **Client-Side Sorting:** While the backend always requests `sort=RELEVANCE` to get the most semantic matches, the frontend implements dynamic client-side sorting, allowing users to re-order the results by **Distance** without making additional API calls or breaking React Query's structural caching.
@@ -224,11 +224,11 @@ flowchart TD
 
 ## Validation Schemas (Zod)
 
-| Schema               | Location            | Fields                                                                                                                                                                                                     |
-| -------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `executeQuerySchema` | `execute.schema.ts` | `message: z.string().min(2).max(500)`, `code: z.literal(ACCESS_CODE)`, `ll: z.string().max(40).regex(…).optional()`                                                                                        |
+| Schema               | Location            | Fields                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `executeQuerySchema` | `execute.schema.ts` | `message: z.string().min(2).max(500)`, `code: z.literal(ACCESS_CODE)`, `ll: z.string().max(40).regex(…).optional()`                                                                                                                                                                                                                                                    |
 | `searchParamsSchema` | `execute.schema.ts` | `query: z.string()`, `near: z.string().default('')`, `min_price: z.number().min(1).max(4).nullable()`, `max_price: z.number().min(1).max(4).nullable()` + refinement `min_price <= max_price`, `open_now: z.boolean()`, `is_food_related: z.boolean()`. Note: `limit` is server-controlled via `DEFAULT_RESULT_LIMIT` in `llm.constants.ts`, not extracted by the LLM. |
-| `envSchema`          | `config/env.ts`     | `PORT`, `NODE_ENV`, `GEMINI_API_KEY`, `FOURSQUARE_API_KEY`, `ALLOWED_ORIGINS`                                                                                                                              |
+| `envSchema`          | `config/env.ts`     | `PORT`, `NODE_ENV`, `GEMINI_API_KEY`, `FOURSQUARE_API_KEY`, `ALLOWED_ORIGINS`                                                                                                                                                                                                                                                                                          |
 
 ## Authentication
 
