@@ -1,11 +1,22 @@
 import { z } from 'zod';
 
+import { normalizeConfusables, sanitizeUnicode } from '@/common/utils/sanitize';
+
 /**
  * Validates the incoming query parameters for GET /api/execute.
  * Used with the `validateRequest` middleware.
  *
  * - `message` is required (the user's search text).
  * - `ll` is optional (lat,lng from browser geolocation — used as location fallback).
+ *
+ * Sanitization pipeline (via Zod transforms):
+ *   1. .max(500)                  — reject oversized payloads (on raw input)
+ *   2. .transform(normalizeConfusables) — homoglyphs → ASCII (Cyrillic "і" → "i")
+ *   3. .transform(sanitizeUnicode)      — strip Zalgo, zero-width, null bytes
+ *   4. .pipe(.min(2))             — reject inputs that became empty after sanitization
+ *
+ * The `validateRequest` middleware writes the transformed value back to
+ * `req.query` via `Object.defineProperty`, so downstream code sees clean text.
  */
 export const executeQuerySchema = z.object({
   query: z.object({
@@ -14,8 +25,10 @@ export const executeQuerySchema = z.object({
         required_error: 'Message is required',
         invalid_type_error: 'Message must be a string',
       })
-      .min(2, 'Message must be at least 2 characters')
-      .max(500, 'Message must be 500 characters or fewer'),
+      .max(500, 'Message must be 500 characters or fewer')
+      .transform(normalizeConfusables)
+      .transform(sanitizeUnicode)
+      .pipe(z.string().min(2, 'Message must be at least 2 characters')),
     ll: z
       .string()
       .max(40, 'll value too long')

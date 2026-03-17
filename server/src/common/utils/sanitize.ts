@@ -1,3 +1,19 @@
+import { remove as removeConfusables } from 'confusables';
+
+// ─── Confusable Normalization ─────────────────────────────────────────────────
+
+/**
+ * Normalizes Unicode homoglyphs → ASCII equivalents.
+ * Prevents bypass via visually identical characters from non-Latin scripts
+ * (e.g., Cyrillic "і" U+0456 looks identical to ASCII "i").
+ *
+ * Uses the Unicode Consortium's confusables dataset (UAX #39, ~9K entries).
+ */
+export const normalizeConfusables = (input: string): string =>
+  removeConfusables(input);
+
+// ─── Unicode Sanitization ─────────────────────────────────────────────────────
+
 /**
  * Strips characters that add no semantic value and confuse both the LLM
  * and downstream APIs. Runs before the message hits Gemini.
