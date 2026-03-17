@@ -8,11 +8,7 @@ import {
   transformResults,
 } from '@/modules/execute/execute.util';
 import { searchRestaurants } from '@/services/foursquare';
-import {
-  detectInjection,
-  parseMessage,
-  parseMessageHeuristic,
-} from '@/services/llm';
+import { parseMessage, parseMessageHeuristic } from '@/services/llm';
 
 /**
  * Main search pipeline: LLM parsing → location resolution → Foursquare search → transform.
@@ -23,7 +19,10 @@ import {
  * 3. IP-based geolocation via geoip-lite
  * 4. Throws MISSING_LOCATION if all tiers fail
  *
- * @param message - The user's natural language search query
+ * Note: Input sanitization and injection detection are handled by middleware
+ * in the route chain (Zod transforms + injectionGuard) before this runs.
+ *
+ * @param message - The user's natural language search query (pre-sanitized)
  * @param ll - Optional lat,lng string from browser geolocation (fallback)
  * @param clientIp - Optional client IP address for geoip fallback
  * @returns A complete ExecuteResponse with results, searchParams, and meta
@@ -33,8 +32,7 @@ export const executeSearch = async (
   ll?: string,
   clientIp?: string,
 ): Promise<ExecuteResponse> => {
-  // ─── Step 1: Injection Pre-screen + LLM Parsing ──────────────────────
-  detectInjection(message);
+  // ─── Step 1: LLM Parsing ─────────────────────────────────────────────
 
   let searchParams: SearchParams;
   let parsedBy: 'llm' | 'heuristic' = 'llm';

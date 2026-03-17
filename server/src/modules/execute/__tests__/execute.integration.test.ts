@@ -6,9 +6,6 @@ import { env } from '@/config/env';
 import type { SearchParams } from '@/modules/execute/execute.types';
 import type { FoursquarePlace } from '@/services/foursquare';
 
-// Import the real detectInjection so it runs even with parseMessage mocked
-const { detectInjection: realDetectInjection } = await import('@/services/llm');
-
 // ─── Mock LLM and Foursquare ────────────────────────────────────────
 
 const mockParseMessage = mock<(message: string) => Promise<SearchParams>>();
@@ -16,8 +13,8 @@ const mockSearchRestaurants =
   mock<(params: SearchParams, ll?: string) => Promise<FoursquarePlace[]>>();
 
 mock.module('@/services/llm', () => ({
-  detectInjection: realDetectInjection,
   parseMessage: mockParseMessage,
+  parseMessageHeuristic: mock(),
 }));
 
 mock.module('@/services/foursquare', () => ({
