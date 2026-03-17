@@ -54,7 +54,6 @@ export const searchParamsSchema = z
     min_price: z.number().int().min(1).max(4).nullable().default(null),
     max_price: z.number().int().min(1).max(4).nullable().default(null),
     open_now: z.boolean().default(false),
-    limit: z.number().int().min(1).max(50).default(20),
     is_food_related: z.boolean().default(true),
   })
   .refine(

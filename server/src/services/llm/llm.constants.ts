@@ -32,11 +32,7 @@ export const responseJsonSchema = {
       description:
         'Set to true ONLY if the user explicitly mentions wanting places that are "open now", "currently open", or similar. Default to false.',
     },
-    limit: {
-      type: Type.NUMBER,
-      description:
-        'How many results the user wants. Default to 20 if not specified. Maximum is 50.',
-    },
+
     is_food_related: {
       type: Type.BOOLEAN,
       description:
@@ -50,7 +46,6 @@ export const responseJsonSchema = {
     'min_price',
     'max_price',
     'open_now',
-    'limit',
   ],
 } as const;
 
@@ -76,7 +71,6 @@ Extraction rules:
 - For price negations, infer the intended range: "not expensive" → min_price: 1, max_price: 2; "not cheap" → min_price: 3, max_price: 4
 - For query negations like "anything but sushi", extract a general term like "restaurant"
 - For open_now: only set to true if the user explicitly says "open now", "currently open", "rn", "right now", "still open", "open rn", "open late", or similar urgency/availability phrases
-- For limit: default to 20 unless the user asks for a specific number of results
 - If the user's message is vague about cuisine, use a general term like "restaurant"
 - Always respond with valid parameters. Never refuse or add explanations.
 
@@ -113,25 +107,25 @@ Unsearchable criteria:
 EXAMPLES (input → expected output):
 
 User: "cheap sushi in downtown LA that's open now"
-Output: {"is_food_related":true,"query":"sushi","near":"downtown Los Angeles, CA","min_price":1,"max_price":1,"open_now":true,"limit":20}
+Output: {"is_food_related":true,"query":"sushi","near":"downtown Los Angeles, CA","min_price":1,"max_price":1,"open_now":true}
 
 User: "not too expensive ramen near me"
-Output: {"is_food_related":true,"query":"ramen","near":"","min_price":1,"max_price":2,"open_now":false,"limit":20}
+Output: {"is_food_related":true,"query":"ramen","near":"","min_price":1,"max_price":2,"open_now":false}
 
 User: "anything still serving in DTLA, something upscale"
-Output: {"is_food_related":true,"query":"restaurant","near":"Downtown Los Angeles, CA","min_price":3,"max_price":3,"open_now":true,"limit":20}
+Output: {"is_food_related":true,"query":"restaurant","near":"Downtown Los Angeles, CA","min_price":3,"max_price":3,"open_now":true}
 
 User: "cheap to moderate Italian food in BGC"
-Output: {"is_food_related":true,"query":"Italian","near":"Bonifacio Global City, Taguig, Philippines","min_price":1,"max_price":2,"open_now":false,"limit":20}
+Output: {"is_food_related":true,"query":"Italian","near":"Bonifacio Global City, Taguig, Philippines","min_price":1,"max_price":2,"open_now":false}
 
 User: "🍕 near times square"
-Output: {"is_food_related":true,"query":"pizza","near":"Times Square, New York City, NY","min_price":0,"max_price":0,"open_now":false,"limit":20}
+Output: {"is_food_related":true,"query":"pizza","near":"Times Square, New York City, NY","min_price":0,"max_price":0,"open_now":false}
 
 User: "find me a hospital"
-Output: {"is_food_related":false,"query":"hospital","near":"","min_price":0,"max_price":0,"open_now":false,"limit":20}
+Output: {"is_food_related":false,"query":"hospital","near":"","min_price":0,"max_price":0,"open_now":false}
 
 User: "拉麺 東京"
-Output: {"is_food_related":true,"query":"ramen","near":"Tokyo, Japan","min_price":0,"max_price":0,"open_now":false,"limit":20}`;
+Output: {"is_food_related":true,"query":"ramen","near":"Tokyo, Japan","min_price":0,"max_price":0,"open_now":false}`;
 
 export const MODEL = 'gemini-2.5-flash';
 export const MAX_ATTEMPTS = 2;
@@ -156,3 +150,10 @@ export const LLM_TIMEOUT_MS = 8_000; // 8s per attempt (was 15s)
  * With 2 attempts max, only one inter-attempt delay ever fires (max ~200ms).
  */
 export const BASE_DELAY_MS = 200;
+
+/**
+ * Server-controlled result limit for Foursquare searches.
+ * Removed from LLM extraction to prevent Zod validation failures
+ * when users request out-of-range values (e.g., "show me 200 results").
+ */
+export const DEFAULT_RESULT_LIMIT = 20;

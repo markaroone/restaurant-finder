@@ -138,7 +138,6 @@ curl "http://localhost:3000/api/execute?message=cheap+sushi+in+downtown+LA+open+
       "near": "downtown Los Angeles",
       "price": 1,
       "open_now": true,
-      "limit": 20,
       "is_food_related": true
     },
     "meta": {
@@ -182,7 +181,7 @@ cd server && bun test
 
 ### What is tested
 
-**Schema tests** (`execute.schema.test.ts`) — Covers validation of both incoming user query parameters (message length, required fields, optional `ll` format) and the LLM response search parameters schema (ensuring structured output from Gemini has valid `query`, `near`, `price`, `open_now`, `limit`, and `is_food_related` fields). These ensure we receive correct and predictable data from both the user input and the LLM output before they enter the pipeline.
+**Schema tests** (`execute.schema.test.ts`) — Covers validation of both incoming user query parameters (message length, required fields, optional `ll` format) and the LLM response search parameters schema (ensuring structured output from Gemini has valid `query`, `near`, `price`, `open_now`, and `is_food_related` fields). These ensure we receive correct and predictable data from both the user input and the LLM output before they enter the pipeline.
 
 **Service tests** (`execute.service.test.ts`) — Covers the core `executeSearch` pipeline business logic: the location priority chain (LLM near → browser geolocation → IP fallback), Foursquare result transformation (raw API shape → clean client shape with safe fallbacks for missing fields), heuristic fallback behavior (graceful degradation when Gemini is unavailable), and placeholder location sanitization (stripping "near me" / "current location" from LLM output). The LLM and Foursquare services are mocked since we're testing the orchestration logic, not the external APIs.
 
@@ -216,7 +215,7 @@ cd server && bun test
 
 ### Known Limitations
 
-- No pagination — results capped at `limit` (default 20, max 50)
+- No pagination — results capped at 20 (server-controlled `DEFAULT_RESULT_LIMIT`)
 - No user accounts or sessions — authentication is a static access code, not per-user
 - Single-language — LLM prompts and heuristic parser are English-only
 - Heuristic parser is significantly less accurate than the LLM — catches basic patterns but misses nuance (e.g., "somewhere fancy for a date night")

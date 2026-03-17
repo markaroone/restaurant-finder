@@ -7,6 +7,7 @@ import {
 import { logger } from '@/common/utils/logger';
 import { env } from '@/config/env';
 import { SearchParams } from '@/modules/execute/execute.types';
+import { DEFAULT_RESULT_LIMIT } from '@/services/llm/llm.constants';
 
 const API_VERSION = '2025-06-17';
 
@@ -64,7 +65,7 @@ const buildSearchParams = (
 ): Record<string, string> => {
   const searchParams: Record<string, string> = {
     query: params.query,
-    limit: String(params.limit),
+    limit: String(DEFAULT_RESULT_LIMIT),
     sort: 'RELEVANCE',
     fields: REQUESTED_FIELDS,
     fsq_category_ids: FOOD_CATEGORY_ID,

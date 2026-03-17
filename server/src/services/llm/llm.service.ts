@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 
+import { HTTP_STATUS } from '@/common/constants/app.constants';
 import { BadRequestError, UpstreamError } from '@/common/utils/api-errors';
 import { logger } from '@/common/utils/logger';
 import { env } from '@/config/env';
@@ -35,7 +36,13 @@ const getBackoffDelay = (attempt: number): number => {
 };
 
 // Gemini SDK surfaces HTTP errors; check for non-retryable status codes
-const NON_RETRYABLE_STATUSES = new Set([400, 401, 403, 404, 422]);
+const NON_RETRYABLE_STATUSES: Set<number> = new Set([
+  HTTP_STATUS.BAD_REQUEST,
+  HTTP_STATUS.UNAUTHORIZED,
+  HTTP_STATUS.FORBIDDEN,
+  HTTP_STATUS.NOT_FOUND,
+  HTTP_STATUS.UNPROCESSABLE_ENTITY,
+]);
 
 /**
  * Returns true only for errors that are likely to resolve on retry.
@@ -94,6 +101,11 @@ const callLlm = async (
     clearTimeout(timer);
   }
 
+  // response.text is undefined when:
+  //   - Safety filters blocked the prompt or generated output (finishReason: SAFETY)
+  //   - Prompt was rejected before generation (promptFeedback.blockReason)
+  //   - Output flagged as recitation of training data (finishReason: RECITATION)
+  //   - Token limit hit in structured-output mode → incomplete JSON suppressed
   if (!response.text) {
     throw new UpstreamError('Gemini returned an empty response', { attempt });
   }

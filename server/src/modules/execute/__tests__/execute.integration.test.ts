@@ -32,7 +32,6 @@ const validSearchParams: SearchParams = {
   min_price: null,
   max_price: null,
   open_now: false,
-  limit: 20,
   is_food_related: true,
 };
 

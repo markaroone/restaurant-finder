@@ -104,7 +104,7 @@ describe('searchParamsSchema', () => {
       min_price: 2,
       max_price: 3,
       open_now: true,
-      limit: 20,
+
       is_food_related: true,
     });
     expect(result.success).toBe(true);
@@ -115,7 +115,7 @@ describe('searchParamsSchema', () => {
         min_price: 2,
         max_price: 3,
         open_now: true,
-        limit: 20,
+
         is_food_related: true,
       });
     }
@@ -131,7 +131,7 @@ describe('searchParamsSchema', () => {
       expect(result.data.min_price).toBeNull();
       expect(result.data.max_price).toBeNull();
       expect(result.data.open_now).toBe(false);
-      expect(result.data.limit).toBe(20);
+
       expect(result.data.is_food_related).toBe(true);
     }
   });
@@ -179,22 +179,6 @@ describe('searchParamsSchema', () => {
       query: 'pizza',
       min_price: 3,
       max_price: 1,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  test('rejects limit over 50', () => {
-    const result = searchParamsSchema.safeParse({
-      query: 'tacos',
-      limit: 100,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  test('rejects limit of 0', () => {
-    const result = searchParamsSchema.safeParse({
-      query: 'tacos',
-      limit: 0,
     });
     expect(result.success).toBe(false);
   });
