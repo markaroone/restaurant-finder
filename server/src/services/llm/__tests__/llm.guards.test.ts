@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 
 import { BadRequestError } from '@/common/utils/api-errors';
-import { guardOutput } from '@/services/llm/llm.guards';
 import type { SearchParams } from '@/modules/execute/execute.types';
+import { guardOutput } from '@/services/llm/llm.guards';
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -12,7 +12,6 @@ const makeParams = (overrides: Partial<SearchParams> = {}): SearchParams => ({
   min_price: null,
   max_price: null,
   open_now: false,
-  limit: 20,
   is_food_related: true,
   ...overrides,
 });

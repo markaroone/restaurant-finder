@@ -126,7 +126,7 @@ Conducted search relevance engineering audit focused on prompt loopholes, parame
 
 - [x] R1: ADR-012 — Foursquare relevance sort + frontend distance default (design decision)
 - [x] R2: IP geolocation city-level precision guard (prevents country-center fallback)
-- [x] R3: Fixed schema limit description mismatch (10 → 20 to match system instruction)
+- [x] R3: ~~Fixed schema limit description mismatch (10 → 20 to match system instruction)~~ → Later removed `limit` from LLM extraction entirely (server-controlled `DEFAULT_RESULT_LIMIT = 20`)
 - [x] R4: Added negation handling to LLM prompt (price + query negations)
 - [x] R5: Added non-Latin query translation rule to LLM prompt
 
@@ -361,3 +361,4 @@ Fixed a bug where the "Did you mean?" chip for ambiguous locations never appeare
 | 2026-03-16 | Phase 4.20 Price Range: `min_price`/`max_price` across backend, frontend, tests, and docs. `formatPriceLabel()` utility extracted.                |
 | 2026-03-17 | Phase 4.21 Error Guards: fixed ambiguous location bug (`meta.reason` → `error.code`), extracted type-guard functions to `error-guards.ts`.        |
 | 2026-03-17 | Phase 4.22 Remove Suggestion Chip: removed "Did you mean?" chip + GeoIP enrichment. Simplified `AmbiguousLocationError`. ADR-021.                |
+| 2026-03-18 | Limit refactor: removed `limit` from LLM extraction and Zod validation. Now server-controlled via `DEFAULT_RESULT_LIMIT = 20` in `llm.constants.ts`. |

@@ -166,7 +166,6 @@ export const parseMessageHeuristic = async (
     min_price: price,
     max_price: price,
     open_now,
-    limit: 20,
     is_food_related: true,
   };
 

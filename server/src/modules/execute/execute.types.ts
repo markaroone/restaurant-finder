@@ -12,8 +12,7 @@ export type SearchParams = {
   max_price: number | null;
   /** Whether to filter for currently open places. */
   open_now: boolean;
-  /** Number of results to return (1-50). */
-  limit: number;
+
   /** Whether the request is about food/restaurants. */
   is_food_related: boolean;
 };

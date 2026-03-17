@@ -45,7 +45,6 @@ flowchart LR
 | `min_price`       | `number \| null` | No       | Minimum price level 1-4 (1=cheap, 4=very expensive). For single-price queries, equals `max_price`              |
 | `max_price`       | `number \| null` | No       | Maximum price level 1-4. For ranges like "cheap to moderate", differs from `min_price`                         |
 | `open_now`        | `boolean`        | No       | Whether to filter for currently open places                                                                    |
-| `limit`           | `number`         | No       | Number of results (default: 20, max: 50)                                                                       |
 | `is_food_related` | `boolean`        | No       | Whether the query is food-related (LLM guardrail)                                                              |
 
 ### Transformed Restaurant Response (What we return to the client)
@@ -108,7 +107,6 @@ flowchart LR
       "min_price": 1,
       "max_price": 1,
       "open_now": true,
-      "limit": 20,
       "is_food_related": true
     },
     "meta": {
@@ -206,7 +204,7 @@ flowchart TD
 | `min_price`        | `min_price` (only when not null)                        |
 | `max_price`        | `max_price` (only when not null)                        |
 | `open_now`         | `open_now`                                              |
-| `limit`            | `limit`                                                 |
+| _(always set)_     | `limit=20` (server-controlled via `DEFAULT_RESULT_LIMIT`)|
 | _(always set)_     | `sort=RELEVANCE`                                        |
 | _(always set)_     | `fsq_category_ids=4d4b7105d754a06374d81259` (Food root) |
 
@@ -229,7 +227,7 @@ flowchart TD
 | Schema               | Location            | Fields                                                                                                                                                                                                     |
 | -------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `executeQuerySchema` | `execute.schema.ts` | `message: z.string().min(2).max(500)`, `code: z.literal(ACCESS_CODE)`, `ll: z.string().max(40).regex(…).optional()`                                                                                        |
-| `searchParamsSchema` | `execute.schema.ts` | `query: z.string()`, `near: z.string().default('')`, `min_price: z.number().min(1).max(4).nullable()`, `max_price: z.number().min(1).max(4).nullable()` + refinement `min_price <= max_price`, `open_now: z.boolean()`, `limit: z.number().min(1).max(50).default(20)`, `is_food_related: z.boolean()` |
+| `searchParamsSchema` | `execute.schema.ts` | `query: z.string()`, `near: z.string().default('')`, `min_price: z.number().min(1).max(4).nullable()`, `max_price: z.number().min(1).max(4).nullable()` + refinement `min_price <= max_price`, `open_now: z.boolean()`, `is_food_related: z.boolean()`. Note: `limit` is server-controlled via `DEFAULT_RESULT_LIMIT` in `llm.constants.ts`, not extracted by the LLM. |
 | `envSchema`          | `config/env.ts`     | `PORT`, `NODE_ENV`, `GEMINI_API_KEY`, `FOURSQUARE_API_KEY`, `ALLOWED_ORIGINS`                                                                                                                              |
 
 ## Authentication
@@ -391,7 +389,7 @@ The frontend's `vite.config.ts` will proxy `/api/*` to the backend URL in dev, a
 1. **Schema validation tests** (`execute.schema.test.ts`):
    - `code` must match the configured access code
    - `message` must be present, 1-500 chars
-   - Parsed search params: `min_price`/`max_price` must be 1-4 with `min_price <= max_price`, `limit` must be 1-50
+   - Parsed search params: `min_price`/`max_price` must be 1-4 with `min_price <= max_price`
 
 2. **Service tests** (`execute.service.test.ts`):
    - Mock LLM service → verify Foursquare params are correctly mapped
