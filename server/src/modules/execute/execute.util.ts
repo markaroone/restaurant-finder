@@ -1,11 +1,6 @@
-import geoip from 'geoip-lite';
-
 import { BadRequestError } from '@/common/utils/api-errors';
-import { logger } from '@/common/utils/logger';
-import {
-  ISO_COUNTRY_NAMES,
-  PLACEHOLDER_LOCATIONS,
-} from '@/modules/execute/execute.constants';
+import { resolveIpLocation } from '@/common/utils/geoip';
+import { PLACEHOLDER_LOCATIONS } from '@/modules/execute/execute.constants';
 import { TransformedRestaurant } from '@/modules/execute/execute.types';
 import { FoursquarePlace } from '@/services/foursquare';
 
@@ -44,65 +39,6 @@ export const transformResults = (
   places: FoursquarePlace[],
 ): TransformedRestaurant[] => {
   return places.map(transformPlace);
-};
-
-// ─── GeoIP Helpers ───────────────────────────────────────────────────
-
-/**
- * Resolves a lat,lng string from the client's IP address using the local
- * MaxMind GeoLite2 database (geoip-lite). Returns undefined if lookup fails.
- */
-export const resolveIpLocation = (ip?: string): string | undefined => {
-  if (!ip) return undefined;
-
-  // Strip IPv6-mapped prefix (e.g., "::ffff:192.168.1.1" → "192.168.1.1")
-  const cleanIp = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
-
-  // Skip private/loopback IPs — they won't resolve
-  if (
-    cleanIp === '127.0.0.1' ||
-    cleanIp === '::1' ||
-    cleanIp.startsWith('192.168.') ||
-    cleanIp.startsWith('10.')
-  ) {
-    logger.debug({ ip: cleanIp }, '⏭️ Skipping geoip for private/loopback IP');
-    return undefined;
-  }
-
-  const geo = geoip.lookup(cleanIp);
-  if (geo?.ll && geo.city) {
-    const [lat, lng] = geo.ll;
-    logger.info(
-      { ip: cleanIp, city: geo.city, ll: `${lat},${lng}` },
-      '📍 Resolved IP to location via geoip-lite',
-    );
-    return `${lat},${lng}`;
-  }
-
-  logger.debug({ ip: cleanIp }, '⚠️ geoip-lite lookup returned no result');
-  return undefined;
-};
-/**
- * Resolves the country name from the client's IP via geoip-lite.
- * Used to enrich AMBIGUOUS_LOCATION suggestions with "[near], [country]".
- * Returns null if the lookup fails or the IP is private.
- */
-export const resolveCountryFromIp = (ip?: string): string | null => {
-  if (!ip) return null;
-  const cleanIp = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
-  if (
-    cleanIp === '127.0.0.1' ||
-    cleanIp === '::1' ||
-    cleanIp.startsWith('192.168.') ||
-    cleanIp.startsWith('10.')
-  )
-    return null;
-
-  const geo = geoip.lookup(cleanIp);
-  if (!geo?.country) return null;
-
-  const code = geo.country as keyof typeof ISO_COUNTRY_NAMES;
-  return ISO_COUNTRY_NAMES[code] ?? geo.country;
 };
 
 // ─── Location Resolution ─────────────────────────────────────────────
