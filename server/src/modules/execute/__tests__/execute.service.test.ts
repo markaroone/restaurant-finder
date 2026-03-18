@@ -176,7 +176,7 @@ describe('executeSearch — result transformation', () => {
 
     expect(result.meta.resultCount).toBe(2);
     expect(result.meta.searchedAt).toBeTruthy();
-    expect(result.meta.distanceLabel).toBeTruthy();
+    expect(result.meta.locationSource).toBeTruthy();
     expect(result.searchParams.query).toBe('sushi');
   });
 
@@ -191,23 +191,23 @@ describe('executeSearch — result transformation', () => {
   });
 });
 
-describe('executeSearch — distanceLabel', () => {
-  test('returns "away from {city}" when LLM near is used', async () => {
+describe('executeSearch — locationSource', () => {
+  test('returns "near" when LLM near is used', async () => {
     mockParseMessage.mockResolvedValue(makeLLMResult({ near: 'La Union' }));
     mockSearchRestaurants.mockResolvedValue([makeFoursquarePlace()]);
 
     const result = await executeSearch('burgers in La Union');
 
-    expect(result.meta.distanceLabel).toBe('away from La Union');
+    expect(result.meta.locationSource).toBe('near');
   });
 
-  test('returns "away from you" when browser ll is used', async () => {
+  test('returns "browser" when browser ll is used', async () => {
     mockParseMessage.mockResolvedValue(makeLLMResult({ near: '' }));
     mockSearchRestaurants.mockResolvedValue([makeFoursquarePlace()]);
 
     const result = await executeSearch('sushi', '14.55,121.02');
 
-    expect(result.meta.distanceLabel).toBe('away from you');
+    expect(result.meta.locationSource).toBe('browser');
   });
 });
 

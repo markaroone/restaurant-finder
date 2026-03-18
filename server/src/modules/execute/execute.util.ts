@@ -43,7 +43,7 @@ export const transformResults = (
 
 // ─── Location Resolution ─────────────────────────────────────────────
 
-export type LocationSource = 'near' | 'browser' | 'ip' | null;
+export type LocationSource = 'near' | 'browser' | 'ip';
 
 type ResolvedLocation = {
   /** The lat,lng string to pass to Foursquare (if near is empty). */
@@ -112,24 +112,4 @@ export const resolveLocation = (
     'Could not determine a location. Please include a city or area in your search, or allow location access in your browser.',
     { reason: 'MISSING_LOCATION' },
   );
-};
-
-/**
- * Builds a human-readable distance suffix based on which location tier resolved.
- * e.g., "away from Makati City", "away from you", "away from you (approx.)"
- */
-export const buildDistanceLabel = (
-  source: LocationSource,
-  near: string,
-): string => {
-  switch (source) {
-    case 'near':
-      return `away from ${near}`;
-    case 'browser':
-      return 'away from you';
-    case 'ip':
-      return 'away from you (approx.)';
-    default:
-      return 'away';
-  }
 };
