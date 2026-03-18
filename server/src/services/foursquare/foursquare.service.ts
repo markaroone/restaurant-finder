@@ -56,38 +56,51 @@ const foursquareApi = ky.create({
 const NEAR_BOUNDARY_ERROR = 'Boundaries could not be determined for near param';
 
 /**
- * Builds the search params record from our internal SearchParams.
+ * Typed query params for Foursquare Place Search API.
+ * Uses native types — ky's `searchParams` auto-converts via URLSearchParams.
+ */
+type FoursquareQueryParams = {
+  query: string;
+  limit: number;
+  sort: string;
+  fields: string;
+  fsq_category_ids: string;
+  min_price?: number;
+  max_price?: number;
+  near?: string;
+  ll?: string;
+  open_now?: boolean;
+};
+
+/**
+ * Builds the search params from our internal SearchParams.
  * Uses `near` (text location) if available, otherwise falls back to `ll` (lat,lng coordinates).
  */
 const buildSearchParams = (
   params: SearchParams,
   ll?: string,
-): Record<string, string> => {
-  const searchParams: Record<string, string> = {
+): FoursquareQueryParams => {
+  const queryParams: FoursquareQueryParams = {
     query: params.query,
-    limit: String(DEFAULT_RESULT_LIMIT),
+    limit: DEFAULT_RESULT_LIMIT,
     sort: 'RELEVANCE',
     fields: REQUESTED_FIELDS,
     fsq_category_ids: FOOD_CATEGORY_ID,
   };
 
-  if (params.min_price !== null)
-    searchParams.min_price = String(params.min_price);
+  if (params.min_price !== null) queryParams.min_price = params.min_price;
+  if (params.max_price !== null) queryParams.max_price = params.max_price;
 
-  if (params.max_price !== null)
-    searchParams.max_price = String(params.max_price);
   // Priority: LLM-extracted "near" > browser geolocation "ll"
   if (params.near.length > 0) {
-    searchParams.near = params.near;
+    queryParams.near = params.near;
   } else if (ll !== undefined) {
-    searchParams.ll = ll;
+    queryParams.ll = ll;
   }
 
-  if (params.open_now) {
-    searchParams.open_now = 'true';
-  }
+  if (params.open_now) queryParams.open_now = true;
 
-  return searchParams;
+  return queryParams;
 };
 
 /**
@@ -123,8 +136,8 @@ export const searchRestaurants = async (
     const errorBody = await error.response.text().catch(() => '');
 
     // Detect the specific Foursquare 400 for unresolvable `near` text.
-    // Throw AmbiguousLocationError so the caller can append a geoip suggestion
-    // and present actionable guidance to the user.
+    // Throw AmbiguousLocationError so the frontend can prompt the user
+    // to add a city or country to their search.
     if (
       error.response.status === 400 &&
       errorBody.includes(NEAR_BOUNDARY_ERROR)
