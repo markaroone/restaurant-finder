@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { searchRestaurants } from '@/api/search-restaurants';
 import { getGeolocationState } from '@/stores/geolocation-store';
 import { getSearchState } from '@/stores/search-store';
+import { buildDistanceLabel } from '@/utils/distance-label';
 
 /**
  * Restaurant results are stable — same query returns the same data.
@@ -53,8 +54,15 @@ export const useSearchRestaurants = () => {
     retry: 1,
   });
 
+  const responseData = query.data?.data ?? null;
+
+  const distanceLabel = responseData
+    ? buildDistanceLabel(responseData.meta.locationSource, responseData.searchParams.near)
+    : undefined;
+
   return {
-    data: query.data?.data ?? null,
+    data: responseData,
+    distanceLabel,
     isLoading: query.isLoading || query.isFetching,
     isError: query.isError,
     error: query.error,

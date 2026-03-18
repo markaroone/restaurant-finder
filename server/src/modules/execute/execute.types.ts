@@ -39,8 +39,8 @@ export type ExecuteResponse = {
   meta: {
     resultCount: number;
     searchedAt: string;
-    /** Contextual label for distance, e.g. "away from La Union" or "away from you". */
-    distanceLabel: string;
+    /** Which tier resolved the user's location. 'near' = LLM-extracted, 'browser' = geolocation, 'ip' = geoip. */
+    locationSource: 'near' | 'browser' | 'ip';
     /** Which parser produced the searchParams. 'llm' = Gemini, 'heuristic' = local NER fallback. */
     parsedBy: 'llm' | 'heuristic';
   };

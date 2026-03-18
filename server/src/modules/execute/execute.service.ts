@@ -2,7 +2,6 @@ import { BadRequestError } from '@/common/utils/api-errors';
 import { logger } from '@/common/utils/logger';
 import { ExecuteResponse, SearchParams } from '@/modules/execute/execute.types';
 import {
-  buildDistanceLabel,
   resolveLocation,
   sanitizePlaceholderNear,
   transformResults,
@@ -74,15 +73,13 @@ export const executeSearch = async (
   // ─── Step 4: Transform + Response ────────────────────────────────────
   const results = transformResults(rawResults);
 
-  const distanceLabel = buildDistanceLabel(locationSource, searchParams.near);
-
   return {
     results,
     searchParams,
     meta: {
       resultCount: results.length,
       searchedAt: new Date().toISOString(),
-      distanceLabel,
+      locationSource,
       parsedBy,
     },
   };

@@ -17,7 +17,7 @@ import { sortRestaurants } from '@/utils/sort';
  * Owns client-side sorting via useMemo, keyed on [results, sortBy].
  */
 export const SearchContent = (): ReactElement => {
-  const { data, isLoading, isError, error, queryMessage, triggerSearch } =
+  const { data, distanceLabel, isLoading, isError, error, queryMessage, triggerSearch } =
     useSearchRestaurants();
 
   const sortBy = useSortBy();
@@ -37,7 +37,6 @@ export const SearchContent = (): ReactElement => {
     [data?.results, sortBy],
   );
 
-  const distanceLabel = data?.meta?.distanceLabel;
   const searchSummary = useMemo(
     () => formatSearchSummary(data?.searchParams, sortedResults.length),
     [data?.searchParams, sortedResults.length],
